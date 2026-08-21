@@ -133,7 +133,9 @@ Item {
             }
 
             ctx.fillStyle = Theme.textDim
-            ctx.font = "10px " + App.monoFont
+            // Family must be quoted: the CSS shorthand drops the space in
+            // names like "Cascadia Mono" and the family resolves to nothing.
+            ctx.font = '10px "' + App.monoFont + '"'
             ctx.fillText(ymax.toFixed(0), 6, t + 8)
             ctx.fillText(ymin.toFixed(0), 6, t + ph)
             const mid = new Date((t0 + t1) / 2)

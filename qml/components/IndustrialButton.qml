@@ -11,6 +11,8 @@ Item {
 
     implicitWidth: Math.max(compact ? 72 : 96, label.implicitWidth + (compact ? 16 : 22))
     implicitHeight: compact ? 28 : 32
+    opacity: enabled ? 1 : 0.42
+    Behavior on opacity { NumberAnimation { duration: 120 } }
 
     Rectangle {
         id: bg

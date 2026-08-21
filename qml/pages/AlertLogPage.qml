@@ -85,6 +85,7 @@ Item {
             spacing: 8
             IndustrialButton {
                 destructive: true
+                enabled: Auth.isAdmin
                 text: "Clear Log"
                 onClicked: App.clearAlerts()
             }
@@ -160,9 +161,13 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom
+            anchors.leftMargin: 10
+            anchors.rightMargin: 10
             clip: true
             model: App.alerts
-            spacing: 0
+            spacing: 8
+            topMargin: 10
+            bottomMargin: 10
             boundsBehavior: Flickable.StopAtBounds
 
             add: Transition {
@@ -188,10 +193,12 @@ Item {
                 onStopped: list.opacity = 1
             }
 
-            delegate: Item {
+            delegate: Rectangle {
                 id: row
                 width: list.width
-                height: 40
+                height: 48
+                radius: 10
+                color: Theme.eventFill(eventType)
                 property real flash: fresh ? 0.35 : 0
 
                 NumberAnimation on flash {
@@ -204,22 +211,19 @@ Item {
 
                 Rectangle {
                     anchors.fill: parent
-                    color: Qt.rgba(Theme.action.r, Theme.action.g, Theme.action.b, row.flash)
-                }
-                Rectangle {
-                    anchors.fill: parent
-                    color: index % 2 ? "#181D25" : "transparent"
-                    opacity: 1 - row.flash
+                    radius: 10
+                    color: Qt.rgba(1, 1, 1, row.flash * 0.28)
                 }
 
                 Row {
                     anchors.fill: parent
-                    anchors.leftMargin: 12
+                    anchors.leftMargin: 14
+                    anchors.rightMargin: 12
                     spacing: 0
                     Text {
                         width: 190; height: parent.height
                         text: timestampText
-                        color: Theme.text
+                        color: "#FFFFFF"
                         font.family: App.monoFont
                         font.pixelSize: 12
                         verticalAlignment: Text.AlignVCenter
@@ -227,45 +231,36 @@ Item {
                     Text {
                         width: 90; height: parent.height
                         text: idString
-                        color: Theme.text
+                        color: "#FFFFFF"
                         font.family: App.monoFont
                         font.pixelSize: 12
+                        font.weight: Font.DemiBold
                         verticalAlignment: Text.AlignVCenter
                     }
                     Text {
-                        width: 240; height: parent.height
+                        width: 220; height: parent.height
                         text: zone
                         elide: Text.ElideRight
-                        color: Theme.textMuted
+                        color: "#FFFFFF"
                         font.family: App.uiFont
                         font.pixelSize: 12
                         verticalAlignment: Text.AlignVCenter
+                        opacity: 0.92
                     }
-                    Item {
+                    Text {
                         width: 170; height: parent.height
-                        Rectangle {
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: tag.implicitWidth + 12
-                            height: 18
-                            radius: 3
-                            color: eventType === 0 ? "#2A2114" : "#2A1A18"
-                            border.color: Theme.statusColor(eventType === 0 ? 2 : 3)
-                            border.width: 1
-                            Text {
-                                id: tag
-                                anchors.centerIn: parent
-                                text: typeLabel
-                                color: Theme.statusColor(eventType === 0 ? 2 : 3)
-                                font.family: App.uiFont
-                                font.pixelSize: 10
-                                font.weight: Font.DemiBold
-                            }
-                        }
+                        text: typeLabel
+                        color: "#FFFFFF"
+                        font.family: App.uiFont
+                        font.pixelSize: 12
+                        font.weight: Font.DemiBold
+                        font.letterSpacing: 0.4
+                        verticalAlignment: Text.AlignVCenter
                     }
                     Text {
                         width: 180; height: parent.height
                         text: triggerValue
-                        color: Theme.text
+                        color: "#FFFFFF"
                         font.family: App.monoFont
                         font.pixelSize: 12
                         verticalAlignment: Text.AlignVCenter
@@ -274,14 +269,24 @@ Item {
                         width: 50; height: parent.height
                         Rectangle {
                             anchors.verticalCenter: parent.verticalCenter
-                            width: 14
-                            height: 14
-                            radius: 3
-                            color: acknowledged ? Theme.action : Theme.bgInset
-                            border.color: acknowledged ? Theme.action : "#3A4250"
-                            border.width: 1
+                            width: 16
+                            height: 16
+                            radius: 4
+                            color: acknowledged ? "#FFFFFF" : "transparent"
+                            border.color: "#FFFFFF"
+                            border.width: 1.5
+                            opacity: Auth.isAdmin || acknowledged ? 1 : 0.55
+                            Text {
+                                visible: acknowledged
+                                anchors.centerIn: parent
+                                text: "✓"
+                                color: Theme.eventFill(eventType)
+                                font.pixelSize: 11
+                                font.weight: Font.DemiBold
+                            }
                             MouseArea {
                                 anchors.fill: parent
+                                enabled: Auth.isAdmin
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: App.acknowledgeAlert(alertId)
                             }

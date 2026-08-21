@@ -18,7 +18,39 @@ NodeManager::NodeManager(QObject *parent)
     : QObject(parent)
 {
     ensureDefaults();
-    loadSettings();
+}
+
+void NodeManager::attachDatabase(Database *db)
+{
+    db_ = db;
+    if (!db_)
+        return;
+
+    loadPersistedState();
+
+    alerts_ = db_->loadAlerts();
+    for (const AlertRecord &a : alerts_) {
+        nextAlertId_ = qMax(nextAlertId_, a.id + 1);
+        if (a.acknowledged && nodes_.contains(a.deviceId))
+            nodes_[a.deviceId].acknowledged = true;
+    }
+
+    const qint64 since = QDateTime::currentDateTime().addDays(-30).toMSecsSinceEpoch();
+    for (auto it = nodes_.begin(); it != nodes_.end(); ++it) {
+        const QVector<Sample> history = db_->loadSamples(it.key(), since, kMaxHistory);
+        if (history.isEmpty())
+            continue;
+        it->history = history;
+        it->latest.deviceId = it.key();
+        const Sample &last = history.last();
+        it->latest.moistureRaw = static_cast<quint16>(qBound(0, int(last.moisture * 100), 10000));
+        it->latest.timestamp = last.timestamp;
+        it->status = evaluate(it->latest);
+        it->everSeen = true;
+    }
+
+    emit alertsChanged();
+    emit profilesChanged();
 }
 
 void NodeManager::ensureDefaults()
@@ -77,6 +109,8 @@ void NodeManager::ingest(const NodeData &data)
     trimHistory(n);
 
     const NodeStatus next = evaluate(data);
+    if (db_)
+        db_->queueSample(data.deviceId, s, next);
     const bool worse = static_cast<int>(next) > static_cast<int>(previous)
                        && next != NodeStatus::Unknown;
     if (next != previous) {
@@ -149,7 +183,7 @@ bool NodeManager::hasNode(quint16 id) const
 void NodeManager::setThresholds(const Thresholds &t)
 {
     thresholds_ = t;
-    saveSettings();
+    savePersistedState();
     emit thresholdsChanged(t);
 
     for (auto it = nodes_.begin(); it != nodes_.end(); ++it) {
@@ -169,7 +203,8 @@ void NodeManager::setZoneLabel(quint16 id, const QString &label)
     if (!nodes_.contains(id))
         return;
     nodes_[id].profile.zoneLabel = label;
-    saveSettings();
+    if (db_)
+        db_->saveProfile(nodes_[id].profile);
     emit profilesChanged();
 }
 
@@ -178,7 +213,8 @@ void NodeManager::setMapPos(quint16 id, const QPointF &pos)
     if (!nodes_.contains(id))
         return;
     nodes_[id].profile.mapPos = pos;
-    saveSettings();
+    if (db_)
+        db_->saveProfile(nodes_[id].profile);
     emit profilesChanged();
 }
 
@@ -197,6 +233,8 @@ void NodeManager::acknowledgeAlert(qint64 alertId)
     for (AlertRecord &a : alerts_) {
         if (a.id == alertId) {
             a.acknowledged = true;
+            if (db_)
+                db_->setAlertAcknowledged(alertId, operator_);
             if (nodes_.contains(a.deviceId)) {
                 nodes_[a.deviceId].acknowledged = true;
                 emit nodeUpdated(a.deviceId, nodes_[a.deviceId].latest);
@@ -216,6 +254,8 @@ void NodeManager::acknowledgeNode(quint16 id)
         if (a.deviceId == id)
             a.acknowledged = true;
     }
+    if (db_)
+        db_->acknowledgeDeviceAlerts(id, operator_);
     emit nodeUpdated(id, nodes_[id].latest);
     emit alertsChanged();
 }
@@ -223,6 +263,10 @@ void NodeManager::acknowledgeNode(quint16 id)
 void NodeManager::clearAlerts()
 {
     alerts_.clear();
+    if (db_) {
+        db_->clearAlerts();
+        db_->audit(operator_, QStringLiteral("clear-alert-log"));
+    }
     emit alertsChanged();
 }
 
@@ -243,51 +287,49 @@ QVector<Sample> NodeManager::samplesInRange(quint16 id, TimeRange range) const
     return out;
 }
 
-void NodeManager::loadSettings()
+void NodeManager::loadPersistedState()
 {
-    QSettings st;
-    thresholds_.moistureWarning = st.value(QStringLiteral("th/mWarn"), thresholds_.moistureWarning).toFloat();
-    thresholds_.moistureCritical = st.value(QStringLiteral("th/mCrit"), thresholds_.moistureCritical).toFloat();
-    thresholds_.tiltWarningDeg = st.value(QStringLiteral("th/tWarn"), thresholds_.tiltWarningDeg).toFloat();
-    thresholds_.tiltCriticalDeg = st.value(QStringLiteral("th/tCrit"), thresholds_.tiltCriticalDeg).toFloat();
+    if (!db_)
+        return;
 
-    st.beginGroup(QStringLiteral("nodes"));
-    const QStringList keys = st.childGroups();
-    for (const QString &key : keys) {
-        bool ok = false;
-        const quint16 id = key.toUShort(&ok, 16);
-        if (!ok)
-            continue;
-        st.beginGroup(key);
-        NodeState &n = nodes_[id];
-        n.profile.deviceId = id;
-        n.profile.zoneLabel = st.value(QStringLiteral("zone"), n.profile.zoneLabel).toString();
-        n.profile.zoneId = st.value(QStringLiteral("zoneId"), n.profile.zoneId).toString();
-        n.profile.mapPos = QPointF(st.value(QStringLiteral("x"), n.profile.mapPos.x()).toDouble(),
-                                   st.value(QStringLiteral("y"), n.profile.mapPos.y()).toDouble());
-        st.endGroup();
+    thresholds_.moistureWarning =
+        db_->setting(QStringLiteral("th.moistureWarning"),
+                     QString::number(thresholds_.moistureWarning)).toFloat();
+    thresholds_.moistureCritical =
+        db_->setting(QStringLiteral("th.moistureCritical"),
+                     QString::number(thresholds_.moistureCritical)).toFloat();
+    thresholds_.tiltWarningDeg =
+        db_->setting(QStringLiteral("th.tiltWarning"),
+                     QString::number(thresholds_.tiltWarningDeg)).toFloat();
+    thresholds_.tiltCriticalDeg =
+        db_->setting(QStringLiteral("th.tiltCritical"),
+                     QString::number(thresholds_.tiltCriticalDeg)).toFloat();
+
+    const QVector<NodeProfile> stored = db_->loadProfiles();
+    for (const NodeProfile &p : stored) {
+        NodeState &n = nodes_[p.deviceId];
+        n.profile = p;
     }
-    st.endGroup();
+
+    // Persist the factory layout the first time so the nodes table is not empty.
+    if (stored.isEmpty()) {
+        for (auto it = nodes_.constBegin(); it != nodes_.constEnd(); ++it)
+            db_->saveProfile(it->profile);
+    }
 }
 
-void NodeManager::saveSettings() const
+void NodeManager::savePersistedState() const
 {
-    QSettings st;
-    st.setValue(QStringLiteral("th/mWarn"), thresholds_.moistureWarning);
-    st.setValue(QStringLiteral("th/mCrit"), thresholds_.moistureCritical);
-    st.setValue(QStringLiteral("th/tWarn"), thresholds_.tiltWarningDeg);
-    st.setValue(QStringLiteral("th/tCrit"), thresholds_.tiltCriticalDeg);
+    if (!db_)
+        return;
 
-    st.beginGroup(QStringLiteral("nodes"));
-    for (auto it = nodes_.constBegin(); it != nodes_.constEnd(); ++it) {
-        st.beginGroup(deviceIdString(it.key()));
-        st.setValue(QStringLiteral("zone"), it->profile.zoneLabel);
-        st.setValue(QStringLiteral("zoneId"), it->profile.zoneId);
-        st.setValue(QStringLiteral("x"), it->profile.mapPos.x());
-        st.setValue(QStringLiteral("y"), it->profile.mapPos.y());
-        st.endGroup();
-    }
-    st.endGroup();
+    db_->setSetting(QStringLiteral("th.moistureWarning"), QString::number(thresholds_.moistureWarning));
+    db_->setSetting(QStringLiteral("th.moistureCritical"), QString::number(thresholds_.moistureCritical));
+    db_->setSetting(QStringLiteral("th.tiltWarning"), QString::number(thresholds_.tiltWarningDeg));
+    db_->setSetting(QStringLiteral("th.tiltCritical"), QString::number(thresholds_.tiltCriticalDeg));
+
+    for (auto it = nodes_.constBegin(); it != nodes_.constEnd(); ++it)
+        db_->saveProfile(it->profile);
 }
 
 NodeStatus NodeManager::evaluate(const NodeData &data) const
@@ -311,6 +353,13 @@ void NodeManager::raiseAlert(const NodeState &n, EventType type, const QString &
     a.type = type;
     a.triggerValue = value;
     a.acknowledged = false;
+    if (db_) {
+        const qint64 rowId = db_->insertAlert(a);
+        if (rowId > 0) {
+            a.id = rowId;
+            nextAlertId_ = qMax(nextAlertId_, rowId + 1);
+        }
+    }
     alerts_.prepend(a);
     emit alertRaised(a);
 }

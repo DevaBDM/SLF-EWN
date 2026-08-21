@@ -127,13 +127,17 @@ Item {
             radius: 1
         }
 
-        Rectangle {
-            width: 8
-            height: 8
-            radius: 4
+        MessageBanner {
             x: 14
-            y: 14
-            color: root.chipColor
+            y: 10
+            compact: true
+            kind: {
+                if (root.status === 3) return "critical"
+                if (root.status === 2) return "warning"
+                if (root.status === 1) return "safe"
+                return "info"
+            }
+            text: Theme.statusLabel(root.status)
         }
 
         Text {
@@ -148,7 +152,7 @@ Item {
 
         Text {
             x: 14
-            y: 30
+            y: 36
             text: root.idString
             color: Theme.text
             font.family: App.monoFont
@@ -158,7 +162,7 @@ Item {
 
         Text {
             x: 14
-            y: 48
+            y: 54
             width: parent.width - 28
             text: root.zone
             elide: Text.ElideRight

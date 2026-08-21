@@ -41,7 +41,10 @@ Item {
     Row {
         anchors.verticalCenter: parent.verticalCenter
         anchors.left: parent.left
-        anchors.leftMargin: 22
+        // Keeps the glyph optically centred in the 72px rail, then slides left
+        // as the panel opens instead of jumping.
+        anchors.leftMargin: root.expanded ? 22 : 27
+        Behavior on anchors.leftMargin { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
         spacing: 14
 
         IconGlyph {

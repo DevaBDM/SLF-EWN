@@ -20,6 +20,7 @@ int main(int argc, char *argv[])
     QQmlApplicationEngine engine;
     engine.addImportPath(QStringLiteral("qrc:/"));
     engine.rootContext()->setContextProperty(QStringLiteral("App"), &controller);
+    engine.rootContext()->setContextProperty(QStringLiteral("Auth"), controller.auth());
 
     const QUrl url(QStringLiteral("qrc:/SlfEwn/Main.qml"));
     QObject::connect(

@@ -33,6 +33,25 @@ QtObject {
         }
     }
 
+    function eventFill(t) {
+        switch (t) {
+        case 0: return warning
+        case 1: return critical
+        case 2: return "#C62828"
+        default: return textDim
+        }
+    }
+
+    function kindFill(kind) {
+        switch (kind) {
+        case "safe": return safe
+        case "critical": return critical
+        case "emergency": return "#C62828"
+        case "info": return action
+        default: return warning
+        }
+    }
+
     function statusLabel(s) {
         switch (s) {
         case 1: return "SAFE"

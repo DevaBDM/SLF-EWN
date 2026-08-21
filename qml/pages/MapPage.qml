@@ -59,7 +59,7 @@ Item {
 
             ctx.setLineDash([6, 5])
             ctx.lineWidth = 1
-            ctx.font = "11px " + App.uiFont
+            ctx.font = '11px "' + App.uiFont + '"'
             for (let i = 0; i < zones.length; ++i) {
                 const z = zones[i]
                 const zx = 16 + z.x * (w - 32)
@@ -100,7 +100,7 @@ Item {
                 ctx.stroke()
 
                 ctx.fillStyle = Theme.textMuted
-                ctx.font = "11px " + App.monoFont
+                ctx.font = '11px "' + App.monoFont + '"'
                 ctx.fillText(n.idString, nx + 12, ny + 4)
 
                 hitNodes.push({ id: n.deviceId, x: nx, y: ny, r: radius + 8 })

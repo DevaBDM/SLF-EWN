@@ -3,12 +3,15 @@
 
 #include "core/Types.h"
 #include "model/AlertListModel.h"
+#include "model/Database.h"
 #include "model/NodeListModel.h"
 #include "model/SerialPortReader.h"
 #include "model/SimulatedTelemetrySource.h"
+#include "controller/AuthController.h"
 #include "controller/NodeManager.h"
 
 #include <QObject>
+#include <QSerialPortInfo>
 #include <QTimer>
 #include <QUrl>
 #include <QVariantList>
@@ -23,6 +26,7 @@ class AppController : public QObject
     Q_PROPERTY(int connectionState READ connectionState NOTIFY connectionChanged)
     Q_PROPERTY(QString portName READ portName WRITE setPortName NOTIFY connectionChanged)
     Q_PROPERTY(QStringList availablePorts READ availablePorts NOTIFY portsChanged)
+    Q_PROPERTY(QStringList availablePortLabels READ availablePortLabels NOTIFY portsChanged)
     Q_PROPERTY(QString lastError READ lastError NOTIFY connectionChanged)
     Q_PROPERTY(bool simulationEnabled READ simulationEnabled WRITE setSimulationEnabled NOTIFY simulationChanged)
     Q_PROPERTY(int nodeCount READ nodeCount NOTIFY countsChanged)
@@ -44,6 +48,23 @@ class AppController : public QObject
     Q_PROPERTY(float tiltWarning READ tiltWarning WRITE setTiltWarning NOTIFY thresholdsChanged)
     Q_PROPERTY(float tiltCritical READ tiltCritical WRITE setTiltCritical NOTIFY thresholdsChanged)
     Q_PROPERTY(int baudRate READ baudRate CONSTANT)
+    Q_PROPERTY(AuthController *auth READ auth CONSTANT)
+    Q_PROPERTY(QString storePath READ storePath CONSTANT)
+    Q_PROPERTY(QString storeStatus READ storeStatus NOTIFY storeChanged)
+    Q_PROPERTY(int storedSamples READ storedSamples NOTIFY storeChanged)
+    Q_PROPERTY(int storedAlerts READ storedAlerts NOTIFY storeChanged)
+    Q_PROPERTY(QString storeLastWrite READ storeLastWrite NOTIFY storeChanged)
+    Q_PROPERTY(int storePending READ storePending NOTIFY storeChanged)
+    Q_PROPERTY(qint64 storeRows READ storeRows NOTIFY storeChanged)
+    Q_PROPERTY(QString storeSize READ storeSize NOTIFY storeChanged)
+    // Live link telemetry, so a silent or mis-framed feed is diagnosable in-app.
+    Q_PROPERTY(qint64 rxBytes READ rxBytes NOTIFY linkStatsChanged)
+    Q_PROPERTY(qint64 rxFrames READ rxFrames NOTIFY linkStatsChanged)
+    Q_PROPERTY(qint64 rxDiscarded READ rxDiscarded NOTIFY linkStatsChanged)
+    Q_PROPERTY(QString rxLastFrame READ rxLastFrame NOTIFY linkStatsChanged)
+    Q_PROPERTY(QString rxTail READ rxTail NOTIFY linkStatsChanged)
+    Q_PROPERTY(QString linkDiagnosis READ linkDiagnosis NOTIFY linkStatsChanged)
+    Q_PROPERTY(QString sourceLabel READ sourceLabel NOTIFY connectionChanged)
 
 public:
     explicit AppController(QObject *parent = nullptr);
@@ -54,6 +75,7 @@ public:
     QString portName() const { return portName_; }
     void setPortName(const QString &p);
     QStringList availablePorts() const { return ports_; }
+    QStringList availablePortLabels() const { return portLabels_; }
     QString lastError() const { return lastError_; }
     bool simulationEnabled() const { return simulationEnabled_; }
     void setSimulationEnabled(bool on);
@@ -80,8 +102,26 @@ public:
     void setTiltWarning(float v);
     void setTiltCritical(float v);
     int baudRate() const { return static_cast<int>(kBaudRate); }
+    AuthController *auth() const { return auth_; }
+    QString storePath() const { return db_.path(); }
+    QString storeStatus() const { return storeStatus_; }
+    int storedSamples() const { return storedSamples_; }
+    int storedAlerts() const { return storedAlerts_; }
+    QString storeLastWrite() const;
+    int storePending() const { return db_.pendingWrites(); }
+    qint64 storeRows() const { return db_.rowsWrittenThisSession(); }
+    QString storeSize() const;
+    qint64 rxBytes() const { return static_cast<qint64>(serial_.bytesReceived()); }
+    qint64 rxFrames() const { return static_cast<qint64>(serial_.framesDecoded()); }
+    qint64 rxDiscarded() const { return static_cast<qint64>(serial_.discardedBytes()); }
+    QString rxLastFrame() const;
+    QString rxTail() const { return serial_.rawTailHex(); }
+    QString linkDiagnosis() const;
+    QString sourceLabel() const;
 
     Q_INVOKABLE void refreshPorts();
+    Q_INVOKABLE void flushStore();
+    Q_INVOKABLE void copyToClipboard(const QString &text);
     Q_INVOKABLE void connectSerial();
     Q_INVOKABLE void disconnectSerial();
     Q_INVOKABLE void openDetail(int deviceId);
@@ -110,30 +150,49 @@ signals:
     void thresholdsChanged();
     void serialShake();
     void chartNeedsReload();
+    void storeChanged();
+    void linkStatsChanged();
+    void permissionDenied();
 
 private:
+    bool requireAdmin();
+    void refreshStoreStats();
+    void handleSerialState(ConnectionState s);
     void applyConnectionState(ConnectionState s);
     void startSimulation();
     void stopSimulation();
     void seedHistory();
+    void openSerialNow();
+    void tryAutoConnect();
+    static int portPreference(const QSerialPortInfo &info);
     TimeRange toRange(int range) const;
     QVariantList seriesOf(quint16 id, int range, int field) const;
     void detectFonts();
 
+    Database db_;
     NodeManager manager_;
     SerialPortReader serial_;
     SimulatedTelemetrySource sim_;
+    AuthController *auth_ = nullptr;
     NodeListModel *nodes_ = nullptr;
     AlertListModel *alerts_ = nullptr;
     QTimer clockTimer_;
-    QTimer settleTimer_;
+    QTimer storeStatsTimer_;
+    QTimer portScanTimer_;
+    QTimer linkStatsTimer_;
+    QString storeStatus_;
+    int storedSamples_ = 0;
+    int storedAlerts_ = 0;
+    bool linkStatsDirty_ = false;
 
     int page_ = 0;
     ConnectionState connection_ = ConnectionState::Disconnected;
     QString portName_;
     QStringList ports_;
+    QStringList portLabels_;
     QString lastError_;
-    bool simulationEnabled_ = true;
+    bool simulationEnabled_ = false;
+    bool userHeldDisconnect_ = false;
     QString clock_;
     QString uiFont_;
     QString monoFont_;

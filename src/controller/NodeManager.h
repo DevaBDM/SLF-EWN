@@ -2,10 +2,10 @@
 #define NODEMANAGER_H
 
 #include "core/Types.h"
+#include "model/Database.h"
 
 #include <QHash>
 #include <QObject>
-#include <QSettings>
 #include <QVector>
 
 namespace Slf {
@@ -24,6 +24,12 @@ class NodeManager : public QObject
     Q_OBJECT
 public:
     explicit NodeManager(QObject *parent = nullptr);
+
+    // Binds the local store and replays persisted thresholds, profiles,
+    // alerts and telemetry history into memory.
+    void attachDatabase(Database *db);
+    Database *database() const { return db_; }
+    void setOperator(const QString &username) { operator_ = username; }
 
     void ingest(const NodeData &data);
     void seedHistory(quint16 id, const QVector<Sample> &samples);
@@ -49,8 +55,8 @@ public:
 
     QVector<Sample> samplesInRange(quint16 id, TimeRange range) const;
 
-    void loadSettings();
-    void saveSettings() const;
+    void loadPersistedState();
+    void savePersistedState() const;
 
 signals:
     void nodeAdded(quint16 id);
@@ -68,6 +74,8 @@ private:
     void ensureDefaults();
     void trimHistory(NodeState &n);
 
+    Database *db_ = nullptr;
+    QString operator_;
     QHash<quint16, NodeState> nodes_;
     QVector<ZoneDef> zones_;
     QVector<AlertRecord> alerts_;

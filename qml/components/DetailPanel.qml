@@ -73,13 +73,6 @@ Item {
             Row {
                 spacing: 12
                 width: parent.width
-                Rectangle {
-                    width: 10
-                    height: 10
-                    radius: 5
-                    color: Theme.statusColor(node.status || 0)
-                    anchors.verticalCenter: parent.verticalCenter
-                }
                 Text {
                     text: node.idString || ""
                     color: Theme.text
@@ -88,13 +81,16 @@ Item {
                     font.weight: Font.DemiBold
                     anchors.verticalCenter: parent.verticalCenter
                 }
-                Text {
+                MessageBanner {
+                    compact: true
+                    kind: {
+                        const s = node.status || 0
+                        if (s === 3) return "critical"
+                        if (s === 2) return "warning"
+                        if (s === 1) return "safe"
+                        return "info"
+                    }
                     text: Theme.statusLabel(node.status || 0)
-                    color: Theme.statusColor(node.status || 0)
-                    font.family: App.uiFont
-                    font.pixelSize: 11
-                    font.letterSpacing: 1.1
-                    font.weight: Font.DemiBold
                     anchors.verticalCenter: parent.verticalCenter
                 }
                 Item { width: 1; height: 1 }
@@ -114,7 +110,7 @@ Item {
             Row {
                 spacing: 10
                 IndustrialButton {
-                    visible: (node.status || 0) >= 2 && !node.acknowledged
+                    visible: (node.status || 0) >= 2 && !node.acknowledged && Auth.isAdmin
                     primary: true
                     text: "Acknowledge Alert"
                     onClicked: App.acknowledgeSelected()

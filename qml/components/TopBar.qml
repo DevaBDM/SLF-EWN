@@ -95,38 +95,100 @@ Rectangle {
 
         Rectangle {
             visible: App.alertCount > 0
-            width: alertRow.implicitWidth + 14
-            height: 22
-            radius: 9
-            color: "#2A1A18"
-            border.color: "#5A2C28"
-            border.width: 1
+            width: alertRow.implicitWidth + 16
+            height: 24
+            radius: 8
+            color: Theme.critical
             anchors.verticalCenter: parent.verticalCenter
             Row {
                 id: alertRow
                 anchors.centerIn: parent
                 spacing: 6
-                Rectangle { width: 6; height: 6; radius: 3; color: Theme.critical; anchors.verticalCenter: parent.verticalCenter }
                 Text {
                     text: App.alertCount + " ALERT" + (App.alertCount === 1 ? "" : "S")
-                    color: Theme.critical
-                    font.family: App.monoFont
+                    color: "#FFFFFF"
+                    font.family: App.uiFont
                     font.pixelSize: 11
                     font.weight: Font.DemiBold
+                    font.letterSpacing: 0.4
                     anchors.verticalCenter: parent.verticalCenter
                 }
             }
         }
     }
 
-    Text {
-        id: clock
+    Row {
         anchors.right: parent.right
         anchors.rightMargin: 20
         anchors.verticalCenter: parent.verticalCenter
-        text: App.clock
-        color: Theme.text
-        font.family: App.monoFont
-        font.pixelSize: 13
+        spacing: 16
+
+        Text {
+            id: clock
+            text: App.clock
+            color: Theme.text
+            font.family: App.monoFont
+            font.pixelSize: 13
+            anchors.verticalCenter: parent.verticalCenter
+        }
+
+        Rectangle {
+            width: 1
+            height: 20
+            color: Theme.borderSoft
+            anchors.verticalCenter: parent.verticalCenter
+        }
+
+        Row {
+            spacing: 10
+            anchors.verticalCenter: parent.verticalCenter
+
+            Rectangle {
+                width: roleText.implicitWidth + 14
+                height: 18
+                radius: 3
+                color: Auth.isAdmin ? "#16283F" : "#1F242C"
+                border.color: Auth.isAdmin ? Theme.action : Theme.border
+                border.width: 1
+                anchors.verticalCenter: parent.verticalCenter
+                Text {
+                    id: roleText
+                    anchors.centerIn: parent
+                    text: Auth.isAdmin ? "ADMIN" : "READ ONLY"
+                    color: Auth.isAdmin ? Theme.action : Theme.textMuted
+                    font.family: App.uiFont
+                    font.pixelSize: 9
+                    font.weight: Font.DemiBold
+                    font.letterSpacing: 0.9
+                }
+            }
+
+            Text {
+                text: Auth.username
+                color: Theme.text
+                font.family: App.monoFont
+                font.pixelSize: 12
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
+            Text {
+                id: signOut
+                text: "Sign out"
+                color: signOutMouse.containsMouse ? Theme.text : Theme.textDim
+                font.family: App.uiFont
+                font.pixelSize: 12
+                anchors.verticalCenter: parent.verticalCenter
+                Behavior on color { ColorAnimation { duration: 100 } }
+
+                MouseArea {
+                    id: signOutMouse
+                    anchors.fill: parent
+                    anchors.margins: -6
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: Auth.logout()
+                }
+            }
+        }
     }
 }

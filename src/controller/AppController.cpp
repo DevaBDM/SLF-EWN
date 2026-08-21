@@ -2,13 +2,19 @@
 
 #include "core/PacketParser.h"
 
+#include <QClipboard>
+#include <QCoreApplication>
 #include <QFile>
+#include <QFileInfo>
 #include <QFontDatabase>
+#include <QGuiApplication>
+#include <QLocale>
 #include <QSerialPortInfo>
 #include <QSet>
-#include <QSettings>
 #include <QTextStream>
 #include <QUrl>
+
+#include <algorithm>
 
 namespace Slf {
 
@@ -16,16 +22,42 @@ AppController::AppController(QObject *parent)
     : QObject(parent)
 {
     detectFonts();
+
+    QString dbError;
+    if (db_.open(&dbError)) {
+        storeStatus_ = QStringLiteral("SQLite · connected");
+        db_.pruneOlderThan(30);
+        manager_.attachDatabase(&db_);
+    } else {
+        storeStatus_ = QStringLiteral("SQLite unavailable — %1").arg(dbError);
+    }
+
+    auth_ = new AuthController(&db_, this);
+    connect(auth_, &AuthController::loggedIn, this, [this](const QString &user, int) {
+        manager_.setOperator(user);
+        page_ = 0;
+        emit pageChanged();
+    });
+    connect(auth_, &AuthController::loggedOut, this, [this]() {
+        manager_.setOperator(QString());
+        closeDetail();
+    });
+
     nodes_ = new NodeListModel(&manager_, this);
     alerts_ = new AlertListModel(&manager_, this);
 
-    QSettings st;
-    simulationEnabled_ = st.value(QStringLiteral("sim"), true).toBool();
-    portName_ = st.value(QStringLiteral("port")).toString();
+    // Replayed nodes already have history, so publish them before the first packet.
+    for (quint16 id : manager_.nodeIds())
+        nodes_->handleNodeUpdated(id);
 
-    refreshPorts();
-    if (portName_.isEmpty() && !ports_.isEmpty())
-        portName_ = ports_.first();
+    // Live UART is the default. An older default stored simulation=1; flip it
+    // once so this build starts on the receiver instead of generated packets.
+    if (db_.setting(QStringLiteral("app.liveFirst"), QStringLiteral("0")) != QLatin1String("1")) {
+        db_.setSetting(QStringLiteral("app.liveFirst"), QStringLiteral("1"));
+        db_.setSetting(QStringLiteral("app.simulation"), QStringLiteral("0"));
+    }
+    simulationEnabled_ = db_.setting(QStringLiteral("app.simulation"), QStringLiteral("0")) == QLatin1String("1");
+    portName_ = db_.setting(QStringLiteral("app.port"));
 
     connect(&sim_, &SimulatedTelemetrySource::packetReceived, &manager_, &NodeManager::ingest);
     connect(&serial_, &SerialPortReader::packetReceived, &manager_, &NodeManager::ingest);
@@ -70,6 +102,33 @@ AppController::AppController(QObject *parent)
         lastError_ = msg;
         emit connectionChanged();
     });
+    // The port itself is the authority on whether the link is alive; a pulled
+    // cable must not leave the dashboard showing a healthy connection.
+    connect(&serial_, &SerialPortReader::connectionStateChanged, this, &AppController::handleSerialState);
+    connect(&serial_, &SerialPortReader::statsChanged, this, [this]() { linkStatsDirty_ = true; });
+
+    // Ports appear and disappear while the app runs; rescan so a receiver
+    // plugged in after launch shows up without restarting.
+    portScanTimer_.setInterval(1500);
+    connect(&portScanTimer_, &QTimer::timeout, this, &AppController::refreshPorts);
+    portScanTimer_.start();
+
+    // Byte-level stats change far faster than the UI needs; coalesce them.
+    linkStatsTimer_.setInterval(400);
+    connect(&linkStatsTimer_, &QTimer::timeout, this, [this]() {
+        if (!linkStatsDirty_)
+            return;
+        linkStatsDirty_ = false;
+        emit linkStatsChanged();
+    });
+    linkStatsTimer_.start();
+
+    // Buffered telemetry must reach disk even on a clean shutdown that does not
+    // run this object's destructor first.
+    connect(qApp, &QCoreApplication::aboutToQuit, this, [this]() {
+        db_.flush();
+        db_.close();
+    });
 
     clockTimer_.setInterval(1000);
     connect(&clockTimer_, &QTimer::timeout, this, [this]() {
@@ -81,10 +140,16 @@ AppController::AppController(QObject *parent)
     clockTimer_.start();
     clock_ = QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd   HH:mm:ss"));
 
+    storeStatsTimer_.setInterval(2000);
+    connect(&storeStatsTimer_, &QTimer::timeout, this, &AppController::refreshStoreStats);
+    storeStatsTimer_.start();
+
     seedHistory();
-    if (simulationEnabled_)
+    refreshStoreStats();
+    refreshPorts();
+    if (simulationEnabled_ && !serial_.isOpen())
         startSimulation();
-    else
+    else if (!serial_.isOpen())
         applyConnectionState(ConnectionState::Disconnected);
 }
 
@@ -101,21 +166,35 @@ void AppController::setPortName(const QString &p)
     if (portName_ == p)
         return;
     portName_ = p;
-    QSettings().setValue(QStringLiteral("port"), p);
+    db_.setSetting(QStringLiteral("app.port"), p);
     emit connectionChanged();
+    if (!simulationEnabled_ && !serial_.isOpen() && !userHeldDisconnect_)
+        tryAutoConnect();
 }
 
 void AppController::setSimulationEnabled(bool on)
 {
     if (simulationEnabled_ == on)
         return;
+    if (!requireAdmin())
+        return;
     simulationEnabled_ = on;
-    QSettings().setValue(QStringLiteral("sim"), on);
-    if (on && connection_ != ConnectionState::Connected)
+    db_.setSetting(QStringLiteral("app.simulation"), on ? QStringLiteral("1") : QStringLiteral("0"));
+
+    if (on) {
+        // Simulation is an explicit demo mode — it replaces the live feed so
+        // generated packets cannot mix with receiver data.
+        if (serial_.isOpen())
+            serial_.close();
         startSimulation();
-    else if (!on && connection_ == ConnectionState::Simulated)
+    } else {
         stopSimulation();
+        userHeldDisconnect_ = false;
+        applyConnectionState(ConnectionState::Disconnected);
+        tryAutoConnect();
+    }
     emit simulationChanged();
+    emit connectionChanged();
 }
 
 int AppController::nodeCount() const
@@ -206,73 +285,268 @@ float AppController::tiltCritical() const { return manager_.thresholds().tiltCri
 
 void AppController::setMoistureWarning(float v)
 {
+    if (!requireAdmin())
+        return;
     Thresholds t = manager_.thresholds();
     t.moistureWarning = v;
     manager_.setThresholds(t);
 }
 void AppController::setMoistureCritical(float v)
 {
+    if (!requireAdmin())
+        return;
     Thresholds t = manager_.thresholds();
     t.moistureCritical = v;
     manager_.setThresholds(t);
 }
 void AppController::setTiltWarning(float v)
 {
+    if (!requireAdmin())
+        return;
     Thresholds t = manager_.thresholds();
     t.tiltWarningDeg = v;
     manager_.setThresholds(t);
 }
 void AppController::setTiltCritical(float v)
 {
+    if (!requireAdmin())
+        return;
     Thresholds t = manager_.thresholds();
     t.tiltCriticalDeg = v;
     manager_.setThresholds(t);
 }
 
+bool AppController::requireAdmin()
+{
+    if (auth_ && auth_->isAdmin())
+        return true;
+    emit permissionDenied();
+    return false;
+}
+
+void AppController::refreshStoreStats()
+{
+    if (!db_.isOpen())
+        return;
+    storedSamples_ = static_cast<int>(db_.sampleCount());
+    storedAlerts_ = manager_.alerts().size();
+    emit storeChanged();
+}
+
+void AppController::flushStore()
+{
+    db_.flush();
+    refreshStoreStats();
+}
+
+void AppController::copyToClipboard(const QString &text)
+{
+    if (QClipboard *cb = QGuiApplication::clipboard())
+        cb->setText(text);
+}
+
+QString AppController::storeLastWrite() const
+{
+    const QDateTime t = db_.lastWrite();
+    if (!t.isValid())
+        return QStringLiteral("no writes yet");
+    return relativeTime(t, QDateTime::currentDateTime());
+}
+
+QString AppController::storeSize() const
+{
+    const QFileInfo fi(db_.path());
+    if (!fi.exists())
+        return QStringLiteral("—");
+    return QLocale().formattedDataSize(fi.size(), 1, QLocale::DataSizeTraditionalFormat);
+}
+
+QString AppController::rxLastFrame() const
+{
+    const QDateTime t = serial_.lastFrameAt();
+    if (!t.isValid())
+        return QStringLiteral("never");
+    return relativeTime(t, QDateTime::currentDateTime());
+}
+
+QString AppController::sourceLabel() const
+{
+    if (connection_ == ConnectionState::Connected)
+        return QStringLiteral("Live serial · %1 · real-time").arg(portName_);
+    if (connection_ == ConnectionState::Connecting)
+        return QStringLiteral("Opening %1…").arg(portName_);
+    if (connection_ == ConnectionState::Simulated)
+        return QStringLiteral("Simulated feed — not hardware data");
+    if (connection_ == ConnectionState::Failed)
+        return lastError_.isEmpty() ? QStringLiteral("Live link failed") : lastError_;
+    return QStringLiteral("Waiting for receiver on USB-UART");
+}
+
+// Turns the raw counters into the one sentence an operator actually needs.
+QString AppController::linkDiagnosis() const
+{
+    if (connection_ == ConnectionState::Simulated)
+        return QStringLiteral("Showing generated test data. Connect a port to read the receiver.");
+    if (connection_ != ConnectionState::Connected)
+        return lastError_.isEmpty() ? QStringLiteral("Port closed.") : lastError_;
+
+    if (serial_.bytesReceived() == 0)
+        return QStringLiteral("Port open but no bytes received — check wiring, baud rate and that the receiver is transmitting.");
+    if (serial_.framesDecoded() == 0)
+        return QStringLiteral("Receiving bytes but no valid frame decoded — the sender's format does not match "
+                              "the expected 12-byte layout (ID, moisture, tiltX/Y/Z, status, CRC-8).");
+    if (serial_.discardedBytes() > serial_.framesDecoded() * kPacketSize)
+        return QStringLiteral("Frames decoding, but many bytes are being dropped — check for noise or a mismatched baud rate.");
+    return QStringLiteral("Link healthy — frames decoding and being stored.");
+}
+
 void AppController::refreshPorts()
 {
-    ports_.clear();
-    for (const QSerialPortInfo &info : QSerialPortInfo::availablePorts())
-        ports_.append(info.portName());
-    emit portsChanged();
+    QList<QSerialPortInfo> infos = QSerialPortInfo::availablePorts();
+    std::sort(infos.begin(), infos.end(), [](const QSerialPortInfo &a, const QSerialPortInfo &b) {
+        const int sa = portPreference(a);
+        const int sb = portPreference(b);
+        if (sa != sb)
+            return sa > sb;
+        return a.portName() < b.portName();
+    });
+
+    QStringList found;
+    QStringList labels;
+    found.reserve(infos.size());
+    labels.reserve(infos.size());
+    for (const QSerialPortInfo &info : infos) {
+        found.append(info.portName());
+        const QString desc = info.description().trimmed();
+        labels.append(desc.isEmpty() ? info.portName()
+                                     : QStringLiteral("%1  ·  %2").arg(info.portName(), desc));
+    }
+
+    const bool changed = (found != ports_);
+    ports_ = found;
+    portLabels_ = labels;
+
+    if (!portName_.isEmpty() && !ports_.contains(portName_) && !ports_.isEmpty()) {
+        // Previously selected port disappeared; pick the highest-ranked remaining one.
+        portName_ = ports_.first();
+        db_.setSetting(QStringLiteral("app.port"), portName_);
+        emit connectionChanged();
+    } else if (portName_.isEmpty() && !ports_.isEmpty()) {
+        portName_ = ports_.first();
+        db_.setSetting(QStringLiteral("app.port"), portName_);
+        emit connectionChanged();
+    }
+
+    if (changed)
+        emit portsChanged();
+
+    if (simulationEnabled_ || serial_.isOpen() || connection_ == ConnectionState::Connecting)
+        return;
+    if (userHeldDisconnect_ && !changed)
+        return;
+    if (ports_.isEmpty())
+        return;
+    if (connection_ == ConnectionState::Failed && !changed)
+        return;
+    tryAutoConnect();
+}
+
+int AppController::portPreference(const QSerialPortInfo &info)
+{
+    const QString hay = (info.description() + QLatin1Char(' ') + info.manufacturer()).toLower();
+    int score = 0;
+    if (hay.contains(QLatin1String("ch340")) || hay.contains(QLatin1String("ch341"))
+        || hay.contains(QLatin1String("cp210")) || hay.contains(QLatin1String("ft232"))
+        || hay.contains(QLatin1String("ftdi")) || hay.contains(QLatin1String("wch"))
+        || hay.contains(QLatin1String("silicon labs")) || hay.contains(QLatin1String("arduino"))
+        || hay.contains(QLatin1String("usb serial")) || hay.contains(QLatin1String("usb-serial"))
+        || hay.contains(QLatin1String("usb uart")))
+        score += 100;
+    if (hay.contains(QLatin1String("bluetooth")) || hay.contains(QLatin1String("standard serial")))
+        score -= 40;
+    return score;
+}
+
+void AppController::openSerialNow()
+{
+    if (portName_.isEmpty() && !ports_.isEmpty())
+        setPortName(ports_.first());
+    if (portName_.isEmpty()) {
+        lastError_ = QStringLiteral("No serial port available — plug in the receiver, then press Rescan");
+        applyConnectionState(ConnectionState::Failed);
+        emit serialShake();
+        emit linkStatsChanged();
+        return;
+    }
+
+    stopSimulation();
+    applyConnectionState(ConnectionState::Connecting);
+
+    if (serial_.open(portName_)) {
+        lastError_.clear();
+        userHeldDisconnect_ = false;
+        applyConnectionState(ConnectionState::Connected);
+    } else {
+        lastError_ = serial_.lastError();
+        applyConnectionState(ConnectionState::Failed);
+        emit serialShake();
+        if (simulationEnabled_)
+            startSimulation();
+    }
+    emit linkStatsChanged();
+}
+
+void AppController::tryAutoConnect()
+{
+    if (simulationEnabled_ || serial_.isOpen() || userHeldDisconnect_)
+        return;
+    if (connection_ == ConnectionState::Connecting)
+        return;
+    if (ports_.isEmpty())
+        return;
+    if (!portName_.isEmpty() && !ports_.contains(portName_))
+        setPortName(ports_.first());
+    openSerialNow();
 }
 
 void AppController::connectSerial()
 {
-    if (portName_.isEmpty()) {
-        lastError_ = QStringLiteral("No port selected");
-        applyConnectionState(ConnectionState::Failed);
-        emit serialShake();
+    if (!requireAdmin())
         return;
-    }
-
-    applyConnectionState(ConnectionState::Connecting);
-    settleTimer_.stop();
-    settleTimer_.disconnect();
-    connect(&settleTimer_, &QTimer::timeout, this, [this]() {
-        settleTimer_.stop();
-        stopSimulation();
-        if (serial_.open(portName_)) {
-            lastError_.clear();
-            applyConnectionState(ConnectionState::Connected);
-        } else {
-            lastError_ = serial_.lastError();
-            applyConnectionState(ConnectionState::Failed);
-            emit serialShake();
-            if (simulationEnabled_)
-                startSimulation();
-        }
-    });
-    settleTimer_.start(600);
+    userHeldDisconnect_ = false;
+    refreshPorts();
+    openSerialNow();
 }
 
 void AppController::disconnectSerial()
 {
+    if (!requireAdmin())
+        return;
+    userHeldDisconnect_ = true;
     serial_.close();
     if (simulationEnabled_)
         startSimulation();
     else
         applyConnectionState(ConnectionState::Disconnected);
+    emit linkStatsChanged();
+}
+
+// Reacts to the port dropping out on its own (unplug, driver reset, read error).
+void AppController::handleSerialState(ConnectionState s)
+{
+    if (s == ConnectionState::Connected) {
+        applyConnectionState(s);
+        return;
+    }
+    if (s != ConnectionState::Failed && s != ConnectionState::Disconnected)
+        return;
+    if (connection_ != ConnectionState::Connected && connection_ != ConnectionState::Connecting)
+        return;
+
+    applyConnectionState(s);
+    if (simulationEnabled_)
+        startSimulation();
+    emit linkStatsChanged();
 }
 
 void AppController::openDetail(int deviceId)
@@ -291,23 +565,32 @@ void AppController::closeDetail()
 
 void AppController::acknowledgeSelected()
 {
+    if (!requireAdmin())
+        return;
     if (selectedId_ > 0)
         manager_.acknowledgeNode(static_cast<quint16>(selectedId_));
 }
 
 void AppController::acknowledgeAlert(int alertId)
 {
+    if (!requireAdmin())
+        return;
     manager_.acknowledgeAlert(alertId);
 }
 
 void AppController::acknowledgeNode(int deviceId)
 {
+    if (!requireAdmin())
+        return;
     manager_.acknowledgeNode(static_cast<quint16>(deviceId));
 }
 
 void AppController::clearAlerts()
 {
+    if (!requireAdmin())
+        return;
     manager_.clearAlerts();
+    refreshStoreStats();
 }
 
 bool AppController::exportAlerts(const QUrl &url)
@@ -317,6 +600,9 @@ bool AppController::exportAlerts(const QUrl &url)
     if (!f.open(QIODevice::WriteOnly | QIODevice::Text))
         return false;
     QTextStream ts(&f);
+    if (db_.isOpen())
+        db_.audit(auth_ ? auth_->username() : QString(), QStringLiteral("export-csv"), path);
+
     ts << "Timestamp,DeviceID,Zone,EventType,Value,Acknowledged\n";
     for (const AlertRecord &a : manager_.alerts()) {
         QString zone = a.zone;
@@ -333,6 +619,8 @@ bool AppController::exportAlerts(const QUrl &url)
 
 void AppController::setZoneLabel(int deviceId, const QString &label)
 {
+    if (!requireAdmin())
+        return;
     manager_.setZoneLabel(static_cast<quint16>(deviceId), label);
 }
 
@@ -390,9 +678,21 @@ void AppController::stopSimulation()
 
 void AppController::seedHistory()
 {
+    // Real deployments replay from SQLite. Only a first run with no stored
+    // telemetry gets a synthetic 24 h backfill, which is then persisted so the
+    // charts stay continuous across restarts.
+    if (db_.isOpen() && db_.hasSamples())
+        return;
+    if (!simulationEnabled_)
+        return;
+
     const QDateTime now = QDateTime::currentDateTime();
-    for (quint16 id : manager_.nodeIds())
-        manager_.seedHistory(id, sim_.makeHistory(id, now, 60 * 24));
+    for (quint16 id : manager_.nodeIds()) {
+        const QVector<Sample> history = sim_.makeHistory(id, now, 60 * 24);
+        manager_.seedHistory(id, history);
+        if (db_.isOpen())
+            db_.insertSamples(id, history);
+    }
 }
 
 TimeRange AppController::toRange(int range) const

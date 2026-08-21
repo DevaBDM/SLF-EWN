@@ -12,6 +12,10 @@ DetailPanel 1.0 DetailPanel.qml
 TelemetryChart 1.0 TelemetryChart.qml
 SegmentedControl 1.0 SegmentedControl.qml
 IndustrialButton 1.0 IndustrialButton.qml
+ToolTipLite 1.0 ToolTipLite.qml
+FieldInput 1.0 FieldInput.qml
+MessageBanner 1.0 MessageBanner.qml
+LoginPage 1.0 LoginPage.qml
 DashboardPage 1.0 DashboardPage.qml
 AlertLogPage 1.0 AlertLogPage.qml
 MapPage 1.0 MapPage.qml
