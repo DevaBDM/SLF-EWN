@@ -1,5 +1,5 @@
 /*
- * master_debug.c – STEP 4 (real 12-byte project packet + INT0)
+ * master_debug.c – multi-node + sequence display
  */
 #define F_CPU 16000000UL
 #include <avr/interrupt.h>
@@ -15,7 +15,6 @@
 static volatile uint8_t packet_ready = 0;
 static uint8_t rx[FRAME_LEN];
 
-/* CRC-8/SMBUS */
 static uint8_t crc8(const uint8_t *data, uint8_t len) {
     uint8_t crc = 0x00;
     for (uint8_t i = 0; i < len; i++) {
@@ -45,11 +44,6 @@ static void uart_print(const char *s) {
     while (*s)
         uart_tx((uint8_t)*s++);
 }
-static void uart_print_hex(uint8_t b) {
-    const char hex[] = "0123456789ABCDEF";
-    uart_tx(hex[b >> 4]);
-    uart_tx(hex[b & 0x0F]);
-}
 static void uart_print_u16(uint16_t v) {
     char tmp[6];
     uint8_t i = 5;
@@ -75,7 +69,6 @@ static uint8_t spi_transfer(uint8_t out) {
     return SPDR;
 }
 
-/* INT0 rising edge */
 ISR(INT0_vect) {
     if (packet_ready)
         return;
@@ -95,14 +88,14 @@ ISR(INT0_vect) {
 int main(void) {
     DDRD &= ~(1 << DIO0_PIN);
 
-    EICRA = (1 << ISC01) | (1 << ISC00); /* rising edge */
+    EICRA = (1 << ISC01) | (1 << ISC00);
     EIMSK = (1 << INT0);
 
     uart_init(8);
     spi_master_init();
     sei();
 
-    uart_print("\r\n=== MASTER STEP4 – real binary packet ===\r\n");
+    uart_print("\r\n=== MASTER multi-node + seq ===\r\n");
 
     while (1) {
         if (packet_ready) {
@@ -111,25 +104,49 @@ int main(void) {
             if (calc == rx[11]) {
                 uint16_t id = (rx[0] << 8) | rx[1];
                 uint16_t moist = (rx[2] << 8) | rx[3];
-                int16_t tx = (rx[4] << 8) | rx[5];
-                int16_t ty = (rx[6] << 8) | rx[7];
-                int16_t tz = (rx[8] << 8) | rx[9];
+                int16_t tx = (int16_t)((rx[4] << 8) | rx[5]);
+                int16_t ty = (int16_t)((rx[6] << 8) | rx[7]);
+                int16_t tz = (int16_t)((rx[8] << 8) | rx[9]);
                 uint8_t stat = rx[10];
+                uint8_t seq = stat & 0x7F;
+                uint8_t emerg = stat & 0x80;
 
                 uart_print("[OK] ID=");
                 uart_print_u16(id);
-                uart_print("  Moist=");
+                uart_print(" SEQ=");
+                uart_print_u16(seq);
+                uart_print(" Moist=");
                 uart_print_u16(moist / 100);
                 uart_print(".");
+                if ((moist % 100) < 10)
+                    uart_tx('0');
                 uart_print_u16(moist % 100);
-                uart_print("%  X=");
+                uart_print("% ");
+
+                /* signed helpers */
+                uart_print("X=");
+                if (tx < 0) {
+                    uart_tx('-');
+                    tx = -tx;
+                }
                 uart_print_u16(tx);
-                uart_print("  Y=");
+
+                uart_print(" Y=");
+                if (ty < 0) {
+                    uart_tx('-');
+                    ty = -ty;
+                }
                 uart_print_u16(ty);
-                uart_print("  Z=");
+
+                uart_print(" Z=");
+                if (tz < 0) {
+                    uart_tx('-');
+                    tz = -tz;
+                }
                 uart_print_u16(tz);
-                uart_print("  STAT=0x");
-                uart_print_hex(stat);
+
+                if (emerg)
+                    uart_print(" **EMERGENCY**");
                 uart_print("\r\n");
             } else {
                 uart_print("[CRC FAIL]\r\n");
