@@ -1,5 +1,6 @@
 /*
- * fake_lora_debug.c – STEP 4 (real 12-byte project packet)
+ * fake_lora_debug.c
+ * Multi-node simulation + sequence number
  */
 #define F_CPU 8000000UL
 #include <avr/io.h>
@@ -19,6 +20,24 @@ static uint8_t frame[FRAME_LEN];
 static volatile uint8_t idx = 0;
 static volatile uint8_t sending = 0;
 
+static uint8_t seq = 0;      /* global sequence number */
+static uint8_t node_idx = 0; /* which virtual node to send next */
+
+/* Three simulated nodes */
+typedef struct {
+    uint16_t id;
+    uint16_t moisture; /* 0–10000 → xx.xx % */
+    int16_t x, y, z;   /* milli-g */
+    uint8_t status;
+} node_t;
+
+static const node_t nodes[] = {
+    {0x0001, 4850, 0, 0, 1000, 0x00},      /* NODE01 – normal */
+    {0x0002, 7200, 150, -80, 980, 0x00},   /* NODE02 – wetter */
+    {0x0003, 3100, -200, 120, 1050, 0x80}, /* NODE03 – emergency */
+};
+#define NUM_NODES (sizeof(nodes) / sizeof(nodes[0]))
+
 /* CRC-8/SMBUS */
 static uint8_t crc8(const uint8_t *data, uint8_t len) {
     uint8_t crc = 0x00;
@@ -35,31 +54,40 @@ static uint8_t crc8(const uint8_t *data, uint8_t len) {
 }
 
 static void build_packet(void) {
-    /* Device ID = 0x0001 (NODE01) */
-    frame[0] = 0x00;
-    frame[1] = 0x01;
+    const node_t *n = &nodes[node_idx];
 
-    /* Moisture = 4850 → 48.50 % */
-    frame[2] = 0x12; /* 4850 = 0x12F2 */
-    frame[3] = 0xF2;
+    /* Device ID */
+    frame[0] = (n->id >> 8) & 0xFF;
+    frame[1] = n->id & 0xFF;
 
-    /* Tilt X = 0 */
-    frame[4] = 0x00;
-    frame[5] = 0x00;
+    /* Moisture */
+    frame[2] = (n->moisture >> 8) & 0xFF;
+    frame[3] = n->moisture & 0xFF;
 
-    /* Tilt Y = 0 */
-    frame[6] = 0x00;
-    frame[7] = 0x00;
+    /* Tilt X */
+    frame[4] = (n->x >> 8) & 0xFF;
+    frame[5] = n->x & 0xFF;
 
-    /* Tilt Z = 1000 milli-g (approx 1 g) */
-    frame[8] = 0x03;
-    frame[9] = 0xE8;
+    /* Tilt Y */
+    frame[6] = (n->y >> 8) & 0xFF;
+    frame[7] = n->y & 0xFF;
 
-    /* Status = 0 (normal) */
-    frame[10] = 0x00;
+    /* Tilt Z */
+    frame[8] = (n->z >> 8) & 0xFF;
+    frame[9] = n->z & 0xFF;
+
+    /* Status – we put the sequence number in the low 7 bits,
+       emergency flag stays in bit 7 if the node has it */
+    frame[10] = (n->status & 0x80) | (seq & 0x7F);
 
     /* CRC over first 11 bytes */
     frame[11] = crc8(frame, 11);
+
+    /* advance for next time */
+    seq++;
+    node_idx++;
+    if (node_idx >= NUM_NODES)
+        node_idx = 0;
 }
 
 static void uart_init(uint16_t ubrr) {
@@ -77,6 +105,11 @@ static void uart_print(const char *s) {
     while (*s)
         uart_tx((uint8_t)*s++);
 }
+static void uart_print_hex(uint8_t b) {
+    const char hex[] = "0123456789ABCDEF";
+    uart_tx(hex[b >> 4]);
+    uart_tx(hex[b & 0x0F]);
+}
 static uint8_t uart_available(void) { return (UCSR0A & (1 << RXC0)) != 0; }
 
 static void spi_slave_init(void) {
@@ -92,15 +125,20 @@ int main(void) {
 
     uart_init(51);
     spi_slave_init();
-    build_packet();
 
-    uart_print("\r\n=== FAKE LORA STEP4 – real 12-byte packet ===\r\n");
+    uart_print("\r\n=== FAKE LORA multi-node + seq ===\r\n");
 
     while (1) {
         if (uart_available()) {
             uint8_t c = UDR0;
             if (c == '\r' || c == '\n') {
-                uart_print(">>> sending binary frame\r\n");
+                build_packet(); /* new values + seq */
+                uart_print(">>> node ");
+                uart_print_hex(frame[1]);
+                uart_print(" seq=");
+                uart_print_hex(frame[10] & 0x7F);
+                uart_print("\r\n");
+
                 idx = 0;
                 SPDR = frame[0];
                 DIO0_PORT |= (1 << DIO0_PIN);
