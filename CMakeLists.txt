@@ -14,7 +14,7 @@ set(F_CPU "16000000UL")
 set(PROGRAMMER "usbasp")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(HEX_OUTPUT_PATH
-    "/mnt/d/DevaBDM/Embedded Systems/Proteus/LandSlideDetectorReceiver"
+    "/mnt/d/DevaBDM/Embedded Systems/Proteus/LandSlideReceiver"
     CACHE PATH "Directory to place generated HEX file")
 set(HEX_FILE "${HEX_OUTPUT_PATH}/${PROJECT_NAME}.hex")
 
