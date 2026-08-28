@@ -4,16 +4,6 @@
 
 namespace Slf {
 
-static NodeProfile makeProfile(quint16 id, const QString &zoneId, const QString &label, QPointF pos)
-{
-    NodeProfile p;
-    p.deviceId = id;
-    p.zoneId = zoneId;
-    p.zoneLabel = label;
-    p.mapPos = pos;
-    return p;
-}
-
 NodeManager::NodeManager(QObject *parent)
     : QObject(parent)
 {
@@ -27,6 +17,7 @@ void NodeManager::attachDatabase(Database *db)
         return;
 
     loadPersistedState();
+    autoAssignNodes();
 
     alerts_ = db_->loadAlerts();
     for (const AlertRecord &a : alerts_) {
@@ -55,30 +46,8 @@ void NodeManager::attachDatabase(Database *db)
 
 void NodeManager::ensureDefaults()
 {
-    zones_ = {
-        {QStringLiteral("north"), QStringLiteral("North Slope"), QRectF(0.06, 0.08, 0.42, 0.36)},
-        {QStringLiteral("south"), QStringLiteral("South Berm"),  QRectF(0.08, 0.52, 0.36, 0.38)},
-        {QStringLiteral("east"),  QStringLiteral("East Face"),   QRectF(0.54, 0.10, 0.40, 0.40)},
-        {QStringLiteral("west"),  QStringLiteral("West Cut"),    QRectF(0.50, 0.56, 0.28, 0.32)},
-        {QStringLiteral("road"),  QStringLiteral("Access Road"), QRectF(0.80, 0.58, 0.16, 0.30)},
-    };
-
-    const QVector<NodeProfile> defaults = {
-        makeProfile(0xA104, QStringLiteral("north"), QStringLiteral("North Slope — Mine Area A"), QPointF(0.18, 0.20)),
-        makeProfile(0xA108, QStringLiteral("north"), QStringLiteral("North Slope — Mine Area A"), QPointF(0.34, 0.28)),
-        makeProfile(0xB201, QStringLiteral("south"), QStringLiteral("South Berm — Drainage B"),   QPointF(0.16, 0.64)),
-        makeProfile(0xB207, QStringLiteral("south"), QStringLiteral("South Berm — Drainage B"),   QPointF(0.30, 0.74)),
-        makeProfile(0xC312, QStringLiteral("east"),  QStringLiteral("East Face — Tunnel Adit C"), QPointF(0.64, 0.22)),
-        makeProfile(0xC318, QStringLiteral("east"),  QStringLiteral("East Face — Tunnel Adit C"), QPointF(0.78, 0.34)),
-        makeProfile(0xD401, QStringLiteral("west"),  QStringLiteral("West Cut — Stockpile D"),    QPointF(0.58, 0.70)),
-        makeProfile(0xE510, QStringLiteral("road"),  QStringLiteral("Access Road — Culvert E"),   QPointF(0.88, 0.72)),
-    };
-
-    for (const NodeProfile &p : defaults) {
-        NodeState s;
-        s.profile = p;
-        nodes_.insert(p.deviceId, s);
-    }
+    zones_.clear();
+    nodes_.clear();
 }
 
 void NodeManager::ingest(const NodeData &data)
@@ -92,6 +61,9 @@ void NodeManager::ingest(const NodeData &data)
             n.profile.zoneId = QStringLiteral("none");
             n.profile.mapPos = QPointF(0.5, 0.5);
         }
+        if (db_)
+            db_->saveProfile(n.profile);
+        autoAssignNodes();
     }
 
     const NodeStatus previous = n.status;
@@ -189,6 +161,7 @@ void NodeManager::setThresholds(const Thresholds &t)
     for (auto it = nodes_.begin(); it != nodes_.end(); ++it) {
         if (!it->everSeen)
             continue;
+        it->latest.deviceId = it.key();
         const NodeStatus next = evaluate(it->latest);
         if (next != it->status) {
             it->status = next;
@@ -196,6 +169,100 @@ void NodeManager::setThresholds(const Thresholds &t)
             emit nodeUpdated(it.key(), it->latest);
         }
     }
+}
+
+Thresholds NodeManager::thresholdsFor(quint16 id) const
+{
+    if (nodes_.contains(id) && nodes_[id].profile.useCustomThresholds)
+        return nodes_[id].profile.thresholds;
+    return thresholds_;
+}
+
+void NodeManager::setNodeThresholds(quint16 id, bool custom, const Thresholds &t)
+{
+    if (!nodes_.contains(id))
+        return;
+    NodeState &n = nodes_[id];
+    n.profile.useCustomThresholds = custom;
+    n.profile.thresholds = t;
+    if (db_)
+        db_->saveProfile(n.profile);
+    if (n.everSeen) {
+        n.latest.deviceId = id;
+        const NodeStatus next = evaluate(n.latest);
+        if (next != n.status) {
+            n.status = next;
+            emit nodeStateChanged(id, next);
+            emit nodeUpdated(id, n.latest);
+        }
+    }
+    emit profilesChanged();
+}
+
+void NodeManager::setNodeGeo(quint16 id, double lat, double lon, double alt)
+{
+    if (id == 0)
+        return;
+    const bool isNew = !nodes_.contains(id);
+    NodeState &n = nodes_[id];
+    if (isNew) {
+        n.profile.deviceId = id;
+        n.profile.zoneLabel = QStringLiteral("Unassigned");
+        n.profile.zoneId = QStringLiteral("none");
+        n.profile.mapPos = QPointF(0.5, 0.5);
+        emit nodeAdded(id);
+    }
+    n.profile.latitude = lat;
+    n.profile.longitude = lon;
+    n.profile.altitude = alt;
+    n.profile.manualPlace = false;
+    if (db_)
+        db_->saveProfile(n.profile);
+    autoAssignNodes();
+    emit profilesChanged();
+}
+
+void NodeManager::setNodeMeta(quint16 id, const QString &locationName, const QString &description)
+{
+    if (!nodes_.contains(id))
+        return;
+    nodes_[id].profile.locationName = locationName.trimmed();
+    nodes_[id].profile.description = description.trimmed();
+    if (db_)
+        db_->saveProfile(nodes_[id].profile);
+    emit profilesChanged();
+}
+
+void NodeManager::moveNodeOnMap(quint16 id, double lat, double lon, const QString &placeId)
+{
+    if (id == 0 || !geoValid(lat, lon))
+        return;
+    const bool isNew = !nodes_.contains(id);
+    NodeState &n = nodes_[id];
+    if (isNew) {
+        n.profile.deviceId = id;
+        n.profile.zoneLabel = QStringLiteral("Unassigned");
+        n.profile.zoneId = QStringLiteral("none");
+        n.profile.mapPos = QPointF(0.5, 0.5);
+        emit nodeAdded(id);
+    }
+    n.profile.latitude = lat;
+    n.profile.longitude = lon;
+
+    if (!placeId.isEmpty() && placeId != QLatin1String("none")) {
+        const ZoneDef z = place(placeId);
+        if (!z.id.isEmpty()) {
+            applyAssignment(id, z, true);
+            emit profilesChanged();
+            return;
+        }
+    }
+
+    n.profile.manualPlace = false;
+    if (db_)
+        db_->saveProfile(n.profile);
+    autoAssignNodes();
+    emit profilesChanged();
 }
 
 void NodeManager::setZoneLabel(quint16 id, const QString &label)
@@ -212,10 +279,189 @@ void NodeManager::setMapPos(quint16 id, const QPointF &pos)
 {
     if (!nodes_.contains(id))
         return;
-    nodes_[id].profile.mapPos = pos;
+    nodes_[id].profile.mapPos = QPointF(qBound(0.02, pos.x(), 0.98), qBound(0.02, pos.y(), 0.98));
     if (db_)
         db_->saveProfile(nodes_[id].profile);
     emit profilesChanged();
+}
+
+void NodeManager::assignNode(quint16 id, const QString &placeId, bool manual)
+{
+    if (placeId.isEmpty() || placeId == QLatin1String("none")) {
+        unassignNode(id, manual);
+        return;
+    }
+    ZoneDef z;
+    bool found = false;
+    for (const ZoneDef &p : zones_) {
+        if (p.id == placeId) {
+            z = p;
+            found = true;
+            break;
+        }
+    }
+    if (!found)
+        return;
+
+    applyAssignment(id, z, manual);
+    emit profilesChanged();
+}
+
+void NodeManager::applyAssignment(quint16 id, const ZoneDef &z, bool manual)
+{
+    if (!nodes_.contains(id)) {
+        NodeState n;
+        n.profile.deviceId = id;
+        nodes_.insert(id, n);
+    }
+    NodeState &n = nodes_[id];
+    n.profile.zoneId = z.id;
+    n.profile.zoneLabel = z.name;
+    n.profile.manualPlace = manual;
+    n.profile.autoAssigned = !manual;
+    n.profile.mapPos = QPointF(z.bounds.center().x(), z.bounds.center().y());
+    const int peers = [&]() {
+        int c = 0;
+        for (auto it = nodes_.constBegin(); it != nodes_.constEnd(); ++it) {
+            if (it.key() != id && it->profile.zoneId == z.id)
+                ++c;
+        }
+        return c;
+    }();
+    n.profile.mapPos += QPointF((peers % 3) * 0.03 - 0.03, (peers / 3) * 0.03);
+    n.profile.mapPos.setX(qBound(z.bounds.left() + 0.02, n.profile.mapPos.x(), z.bounds.right() - 0.02));
+    n.profile.mapPos.setY(qBound(z.bounds.top() + 0.02, n.profile.mapPos.y(), z.bounds.bottom() - 0.02));
+    if (db_)
+        db_->saveProfile(n.profile);
+}
+
+void NodeManager::unassignNode(quint16 id, bool manual)
+{
+    if (!nodes_.contains(id))
+        return;
+    nodes_[id].profile.zoneId = QStringLiteral("none");
+    nodes_[id].profile.zoneLabel = QStringLiteral("Unassigned");
+    nodes_[id].profile.manualPlace = manual;
+    nodes_[id].profile.autoAssigned = false;
+    if (db_)
+        db_->saveProfile(nodes_[id].profile);
+    emit profilesChanged();
+}
+
+void NodeManager::autoAssignNodes()
+{
+    bool changed = false;
+    for (auto it = nodes_.begin(); it != nodes_.end(); ++it) {
+        if (it->profile.manualPlace || !it->profile.hasGeo())
+            continue;
+
+        QString bestId;
+        double bestVol = 1e300;
+        for (const ZoneDef &z : zones_) {
+            if (!z.contains(it->profile.latitude, it->profile.longitude, it->profile.altitude))
+                continue;
+            const double vol = z.coverageVolume();
+            if (vol < bestVol) {
+                bestVol = vol;
+                bestId = z.id;
+            }
+        }
+
+        if (!bestId.isEmpty()) {
+            if (it->profile.zoneId != bestId) {
+                applyAssignment(it.key(), place(bestId), false);
+                changed = true;
+            } else {
+                it->profile.autoAssigned = true;
+            }
+        } else if (it->profile.autoAssigned) {
+            it->profile.zoneId = QStringLiteral("none");
+            it->profile.zoneLabel = QStringLiteral("Unassigned");
+            it->profile.autoAssigned = false;
+            if (db_)
+                db_->saveProfile(it->profile);
+            changed = true;
+        }
+    }
+    if (changed)
+        emit profilesChanged();
+}
+
+bool NodeManager::removeNode(quint16 id)
+{
+    if (!nodes_.contains(id))
+        return false;
+    nodes_.remove(id);
+    if (db_)
+        db_->deleteProfile(id);
+    emit nodeRemoved(id);
+    emit profilesChanged();
+    return true;
+}
+
+ZoneDef NodeManager::place(const QString &id) const
+{
+    for (const ZoneDef &z : zones_) {
+        if (z.id == id)
+            return z;
+    }
+    return {};
+}
+
+bool NodeManager::upsertPlace(const ZoneDef &place)
+{
+    if (place.id.isEmpty() || place.name.trimmed().isEmpty())
+        return false;
+    ZoneDef z = place;
+    z.name = z.name.trimmed();
+    if (z.bounds.width() < 0.05)
+        z.bounds.setWidth(0.18);
+    if (z.bounds.height() < 0.05)
+        z.bounds.setHeight(0.16);
+    bool found = false;
+    for (ZoneDef &existing : zones_) {
+        if (existing.id == z.id) {
+            existing = z;
+            found = true;
+            break;
+        }
+    }
+    if (!found)
+        zones_.append(z);
+    if (db_)
+        db_->savePlace(z);
+
+    for (auto it = nodes_.begin(); it != nodes_.end(); ++it) {
+        if (it->profile.zoneId == z.id)
+            it->profile.zoneLabel = z.name;
+    }
+    autoAssignNodes();
+    emit profilesChanged();
+    return true;
+}
+
+bool NodeManager::removePlace(const QString &id)
+{
+    if (id.isEmpty())
+        return false;
+    for (int i = 0; i < zones_.size(); ++i) {
+        if (zones_.at(i).id != id)
+            continue;
+        zones_.removeAt(i);
+        if (db_)
+            db_->deletePlace(id);
+        for (auto it = nodes_.begin(); it != nodes_.end(); ++it) {
+            if (it->profile.zoneId == id) {
+                it->profile.zoneId = QStringLiteral("none");
+                it->profile.zoneLabel = QStringLiteral("Unassigned");
+                if (db_)
+                    db_->saveProfile(it->profile);
+            }
+        }
+        emit profilesChanged();
+        return true;
+    }
+    return false;
 }
 
 int NodeManager::unacknowledgedCount() const
@@ -305,16 +551,12 @@ void NodeManager::loadPersistedState()
         db_->setting(QStringLiteral("th.tiltCritical"),
                      QString::number(thresholds_.tiltCriticalDeg)).toFloat();
 
+    zones_ = db_->loadPlaces();
+
     const QVector<NodeProfile> stored = db_->loadProfiles();
     for (const NodeProfile &p : stored) {
         NodeState &n = nodes_[p.deviceId];
         n.profile = p;
-    }
-
-    // Persist the factory layout the first time so the nodes table is not empty.
-    if (stored.isEmpty()) {
-        for (auto it = nodes_.constBegin(); it != nodes_.constEnd(); ++it)
-            db_->saveProfile(it->profile);
     }
 }
 
@@ -334,11 +576,12 @@ void NodeManager::savePersistedState() const
 
 NodeStatus NodeManager::evaluate(const NodeData &data) const
 {
+    const Thresholds th = thresholdsFor(data.deviceId);
     const float m = data.moisturePercent();
     const float t = data.tiltMagnitudeDeg();
-    if (m >= thresholds_.moistureCritical || t >= thresholds_.tiltCriticalDeg)
+    if (m >= th.moistureCritical || t >= th.tiltCriticalDeg)
         return NodeStatus::Critical;
-    if (m >= thresholds_.moistureWarning || t >= thresholds_.tiltWarningDeg)
+    if (m >= th.moistureWarning || t >= th.tiltWarningDeg)
         return NodeStatus::Warning;
     return NodeStatus::Safe;
 }

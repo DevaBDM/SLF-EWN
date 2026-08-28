@@ -103,6 +103,16 @@ void NodeListModel::handleNodeUpdated(quint16 id)
     emit dataChanged(index(existing), index(existing));
 }
 
+void NodeListModel::handleNodeRemoved(quint16 id)
+{
+    const int existing = indexOf(id);
+    if (existing < 0)
+        return;
+    beginRemoveRows(QModelIndex(), existing, existing);
+    ids_.removeAt(existing);
+    endRemoveRows();
+}
+
 void NodeListModel::refreshAll()
 {
     if (!ids_.isEmpty())

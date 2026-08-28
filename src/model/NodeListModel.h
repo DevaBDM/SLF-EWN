@@ -41,6 +41,7 @@ public:
 
     void setNow(const QDateTime &now);
     void handleNodeUpdated(quint16 id);
+    void handleNodeRemoved(quint16 id);
     void refreshAll();
 
 private:

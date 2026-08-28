@@ -39,11 +39,24 @@ public:
     bool hasNode(quint16 id) const;
 
     Thresholds thresholds() const { return thresholds_; }
+    Thresholds thresholdsFor(quint16 id) const;
     void setThresholds(const Thresholds &t);
+    void setNodeThresholds(quint16 id, bool custom, const Thresholds &t);
+    void setNodeGeo(quint16 id, double lat, double lon, double alt);
+    void setNodeMeta(quint16 id, const QString &locationName, const QString &description);
+    void moveNodeOnMap(quint16 id, double lat, double lon, const QString &placeId);
 
     void setZoneLabel(quint16 id, const QString &label);
     void setMapPos(quint16 id, const QPointF &pos);
+    void assignNode(quint16 id, const QString &placeId, bool manual = true);
+    void unassignNode(quint16 id, bool manual = true);
+    bool removeNode(quint16 id);
+    void autoAssignNodes();
+
     QVector<ZoneDef> zones() const { return zones_; }
+    ZoneDef place(const QString &id) const;
+    bool upsertPlace(const ZoneDef &place);
+    bool removePlace(const QString &id);
 
     QVector<AlertRecord> alerts() const { return alerts_; }
     int unacknowledgedCount() const;
@@ -60,6 +73,7 @@ public:
 
 signals:
     void nodeAdded(quint16 id);
+    void nodeRemoved(quint16 id);
     void nodeUpdated(quint16 id, Slf::NodeData data);
     void nodeStateChanged(quint16 id, Slf::NodeStatus status);
     void emergencyTriggered(quint16 id);
@@ -73,6 +87,7 @@ private:
     void raiseAlert(const NodeState &n, EventType type, const QString &value);
     void ensureDefaults();
     void trimHistory(NodeState &n);
+    void applyAssignment(quint16 id, const ZoneDef &z, bool manual);
 
     Database *db_ = nullptr;
     QString operator_;
