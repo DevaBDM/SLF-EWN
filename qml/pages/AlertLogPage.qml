@@ -10,51 +10,51 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        anchors.margins: 16
-        height: 44
+        anchors.margins: Theme.padPage
+        height: 48
         color: Theme.bgCard
         border.color: Theme.border
         border.width: 1
-        radius: 6
+        radius: Theme.radiusCard
 
         Row {
             anchors.verticalCenter: parent.verticalCenter
             anchors.left: parent.left
-            anchors.leftMargin: 12
+            anchors.leftMargin: 16
             spacing: 10
 
             ComboBox {
                 id: typeBox
                 width: 190
-                height: 28
+                height: 32
                 model: ["All events", "Warning", "Critical", "Emergency-Interrupt"]
                 font.family: App.uiFont
-                font.pixelSize: 12
+                font.pixelSize: 13
                 onActivated: App.alerts.typeFilter = index === 0 ? -1 : index - 1
-                background: Rectangle { color: Theme.bgInset; border.color: Theme.border; radius: 4 }
+                background: Rectangle { color: Theme.bgInset; border.color: Theme.border; radius: Theme.radiusCtl }
                 contentItem: Text {
                     text: typeBox.displayText
                     color: Theme.text
                     font: typeBox.font
-                    leftPadding: 8
+                    leftPadding: 10
                     verticalAlignment: Text.AlignVCenter
                 }
             }
             ComboBox {
                 id: zoneBox
                 width: 240
-                height: 28
+                height: 32
                 model: App.zoneNames
                 font.family: App.uiFont
-                font.pixelSize: 12
+                font.pixelSize: 13
                 displayText: currentIndex <= 0 ? "All zones" : currentText
                 onActivated: App.alerts.zoneFilter = index <= 0 ? "" : currentText
-                background: Rectangle { color: Theme.bgInset; border.color: Theme.border; radius: 4 }
+                background: Rectangle { color: Theme.bgInset; border.color: Theme.border; radius: Theme.radiusCtl }
                 contentItem: Text {
                     text: zoneBox.displayText
                     color: Theme.text
                     font: zoneBox.font
-                    leftPadding: 8
+                    leftPadding: 10
                     verticalAlignment: Text.AlignVCenter
                     elide: Text.ElideRight
                 }
@@ -62,17 +62,17 @@ Item {
             ComboBox {
                 id: dateBox
                 width: 140
-                height: 28
+                height: 32
                 model: ["Any time", "Last 24h", "Last 7d"]
                 font.family: App.uiFont
-                font.pixelSize: 12
+                font.pixelSize: 13
                 onActivated: App.alerts.dateFilter = index
-                background: Rectangle { color: Theme.bgInset; border.color: Theme.border; radius: 4 }
+                background: Rectangle { color: Theme.bgInset; border.color: Theme.border; radius: Theme.radiusCtl }
                 contentItem: Text {
                     text: dateBox.displayText
                     color: Theme.text
                     font: dateBox.font
-                    leftPadding: 8
+                    leftPadding: 10
                     verticalAlignment: Text.AlignVCenter
                 }
             }
@@ -81,12 +81,12 @@ Item {
         Row {
             anchors.verticalCenter: parent.verticalCenter
             anchors.right: parent.right
-            anchors.rightMargin: 12
+            anchors.rightMargin: 16
             spacing: 8
             IndustrialButton {
                 destructive: true
                 enabled: Auth.isAdmin
-                text: "Clear Log"
+                text: "Clear log"
                 onClicked: App.clearAlerts()
             }
             IndustrialButton {
@@ -110,120 +110,84 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        anchors.margins: 16
-        anchors.topMargin: 10
+        anchors.margins: Theme.padPage
+        anchors.topMargin: 12
         color: Theme.bgCard
         border.color: Theme.border
         border.width: 1
-        radius: 6
+        radius: Theme.radiusCard
         clip: true
 
-        Row {
+        Rectangle {
             id: header
-            x: 12
-            y: 0
-            height: 36
-            spacing: 0
-            Repeater {
-                model: [
-                    { t: "TIMESTAMP", w: 190 },
-                    { t: "DEVICE", w: 90 },
-                    { t: "ZONE", w: 240 },
-                    { t: "EVENT", w: 170 },
-                    { t: "TRIGGER", w: 180 },
-                    { t: "ACK", w: 50 }
-                ]
-                delegate: Text {
-                    width: modelData.w
-                    height: 36
-                    text: modelData.t
-                    color: Theme.textMuted
-                    font.family: App.uiFont
-                    font.pixelSize: 10
-                    font.letterSpacing: 0.8
-                    font.weight: Font.DemiBold
-                    verticalAlignment: Text.AlignVCenter
+            width: parent.width
+            height: 44
+            color: Qt.rgba(Theme.bgDeep.r, Theme.bgDeep.g, Theme.bgDeep.b, 0.55)
+            z: 2
+            Row {
+                anchors.fill: parent
+                anchors.leftMargin: 16
+                spacing: 0
+                Repeater {
+                    model: [
+                        { t: "Timestamp", w: 190 },
+                        { t: "Device", w: 90 },
+                        { t: "Zone", w: 240 },
+                        { t: "Event", w: 170 },
+                        { t: "Trigger", w: 180 },
+                        { t: "", w: 48 }
+                    ]
+                    delegate: Text {
+                        width: modelData.w
+                        height: 44
+                        text: modelData.t
+                        color: Theme.textDim
+                        font.family: App.uiFont
+                        font.pixelSize: 11
+                        font.weight: Font.Medium
+                        verticalAlignment: Text.AlignVCenter
+                    }
                 }
             }
-        }
-
-        Rectangle {
-            anchors.top: header.bottom
-            width: parent.width
-            height: 1
-            color: Theme.border
+            Rectangle {
+                anchors.bottom: parent.bottom
+                width: parent.width
+                height: 1
+                color: Theme.border
+            }
         }
 
         ListView {
             id: list
             anchors.top: header.bottom
-            anchors.topMargin: 1
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom
-            anchors.leftMargin: 10
-            anchors.rightMargin: 10
             clip: true
             model: App.alerts
-            spacing: 8
-            topMargin: 10
-            bottomMargin: 10
+            spacing: 0
             boundsBehavior: Flickable.StopAtBounds
-
-            add: Transition {
-                NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 250 }
-                NumberAnimation { property: "y"; duration: 250; easing.type: Easing.OutCubic }
-            }
-            addDisplaced: Transition {
-                NumberAnimation { property: "y"; duration: 250; easing.type: Easing.OutCubic }
-            }
-
-            opacity: 1
-            Behavior on opacity { NumberAnimation { duration: 150 } }
-            Connections {
-                target: App.alerts
-                function onFilterChanged() {
-                    list.opacity = 0
-                    fadeBack.start()
-                }
-            }
-            PauseAnimation {
-                id: fadeBack
-                duration: 80
-                onStopped: list.opacity = 1
-            }
 
             delegate: Rectangle {
                 id: row
                 width: list.width
                 height: 48
-                radius: 10
-                color: Theme.eventFill(eventType)
-                property real flash: fresh ? 0.35 : 0
-
-                NumberAnimation on flash {
-                    running: fresh
-                    from: 0.35
-                    to: 0
-                    duration: 1000
-                    easing.type: Easing.OutQuad
-                }
-
-                Rectangle {
-                    anchors.fill: parent
-                    radius: 10
-                    color: Qt.rgba(1, 1, 1, row.flash * 0.28)
+                color: {
+                    if (eventType === 0)
+                        return Qt.rgba(Theme.warning.r, Theme.warning.g, Theme.warning.b, 0.08)
+                    if (eventType >= 1)
+                        return Qt.rgba(Theme.critical.r, Theme.critical.g, Theme.critical.b, 0.08)
+                    return index % 2 === 0 ? Theme.bgCard : Theme.bgInset
                 }
 
                 Row {
                     anchors.fill: parent
-                    anchors.leftMargin: 14
-                    anchors.rightMargin: 12
+                    anchors.leftMargin: 16
                     spacing: 0
                     Text {
                         width: 190; height: parent.height
                         text: timestampText
-                        color: "#FFFFFF"
+                        color: Theme.text
                         font.family: App.monoFont
                         font.pixelSize: 12
                         verticalAlignment: Text.AlignVCenter
@@ -231,62 +195,59 @@ Item {
                     Text {
                         width: 90; height: parent.height
                         text: idString
-                        color: "#FFFFFF"
+                        color: Theme.text
                         font.family: App.monoFont
                         font.pixelSize: 12
                         font.weight: Font.DemiBold
                         verticalAlignment: Text.AlignVCenter
                     }
                     Text {
-                        width: 220; height: parent.height
+                        width: 240; height: parent.height
                         text: zone
                         elide: Text.ElideRight
-                        color: "#FFFFFF"
+                        color: Theme.textMuted
                         font.family: App.uiFont
-                        font.pixelSize: 12
+                        font.pixelSize: 13
                         verticalAlignment: Text.AlignVCenter
-                        opacity: 0.92
                     }
                     Text {
                         width: 170; height: parent.height
                         text: typeLabel
-                        color: "#FFFFFF"
+                        color: Theme.eventFill(eventType)
                         font.family: App.uiFont
-                        font.pixelSize: 12
+                        font.pixelSize: 13
                         font.weight: Font.DemiBold
-                        font.letterSpacing: 0.4
                         verticalAlignment: Text.AlignVCenter
                     }
                     Text {
                         width: 180; height: parent.height
                         text: triggerValue
-                        color: "#FFFFFF"
+                        color: Theme.text
                         font.family: App.monoFont
                         font.pixelSize: 12
                         verticalAlignment: Text.AlignVCenter
                     }
                     Item {
-                        width: 50; height: parent.height
+                        width: 48; height: parent.height
                         Rectangle {
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: 16
-                            height: 16
-                            radius: 4
-                            color: acknowledged ? "#FFFFFF" : "transparent"
-                            border.color: "#FFFFFF"
-                            border.width: 1.5
-                            opacity: Auth.isAdmin || acknowledged ? 1 : 0.55
+                            anchors.centerIn: parent
+                            width: 26
+                            height: 26
+                            radius: 13
+                            color: acknowledged ? Qt.rgba(Theme.safe.r, Theme.safe.g, Theme.safe.b, 0.16) : "transparent"
+                            border.color: acknowledged ? Theme.safe : Theme.border
+                            border.width: 1
                             Text {
-                                visible: acknowledged
                                 anchors.centerIn: parent
-                                text: "✓"
-                                color: Theme.eventFill(eventType)
-                                font.pixelSize: 11
+                                text: acknowledged ? "✓" : "ACK"
+                                color: acknowledged ? Theme.safe : Theme.textDim
+                                font.family: App.uiFont
+                                font.pixelSize: acknowledged ? 12 : 8
                                 font.weight: Font.DemiBold
                             }
                             MouseArea {
                                 anchors.fill: parent
-                                enabled: Auth.isAdmin
+                                enabled: Auth.isAdmin && !acknowledged
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: App.acknowledgeAlert(alertId)
                             }
