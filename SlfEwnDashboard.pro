@@ -1,4 +1,4 @@
-QT += core gui qml quick quickcontrols2 serialport quickdialogs2 sql
+QT += core gui qml quick quickcontrols2 serialport quickdialogs2 sql network
 CONFIG += c++17
 TEMPLATE = app
 TARGET = SLF-EWN

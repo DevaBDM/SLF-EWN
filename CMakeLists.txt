@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick QuickControls2 Qml SerialPort QuickDialogs2 Sql)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick QuickControls2 Qml SerialPort QuickDialogs2 Sql Network)
 
 qt_add_executable(SlfEwnDashboard
     src/main.cpp
@@ -34,6 +34,7 @@ target_link_libraries(SlfEwnDashboard PRIVATE
     Qt6::SerialPort
     Qt6::QuickDialogs2
     Qt6::Sql
+    Qt6::Network
 )
 
 set_target_properties(SlfEwnDashboard PROPERTIES
