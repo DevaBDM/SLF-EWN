@@ -9,8 +9,14 @@
         <file alias="SerialBar.qml">qml/components/SerialBar.qml</file>
         <file alias="TopBar.qml">qml/components/TopBar.qml</file>
         <file alias="StatusDot.qml">qml/components/StatusDot.qml</file>
+        <file alias="StatusChip.qml">qml/components/StatusChip.qml</file>
+        <file alias="LimitSlider.qml">qml/components/LimitSlider.qml</file>
         <file alias="NodeCard.qml">qml/components/NodeCard.qml</file>
         <file alias="Sparkline.qml">qml/components/Sparkline.qml</file>
+        <file alias="fonts/Inter-Regular.ttf">qml/fonts/Inter-Regular.ttf</file>
+        <file alias="fonts/Inter-Medium.ttf">qml/fonts/Inter-Medium.ttf</file>
+        <file alias="fonts/Inter-SemiBold.ttf">qml/fonts/Inter-SemiBold.ttf</file>
+        <file alias="fonts/JetBrainsMono-Regular.ttf">qml/fonts/JetBrainsMono-Regular.ttf</file>
         <file alias="DetailPanel.qml">qml/components/DetailPanel.qml</file>
         <file alias="TelemetryChart.qml">qml/components/TelemetryChart.qml</file>
         <file alias="SegmentedControl.qml">qml/components/SegmentedControl.qml</file>
@@ -21,7 +27,7 @@
         <file alias="LoginPage.qml">qml/pages/LoginPage.qml</file>
         <file alias="DashboardPage.qml">qml/pages/DashboardPage.qml</file>
         <file alias="AlertLogPage.qml">qml/pages/AlertLogPage.qml</file>
-        <file alias="MapPage.qml">qml/pages/MapPage.qml</file>
+        <file alias="GeoMapPage.qml">qml/pages/GeoMapPage.qml</file>
         <file alias="SettingsPage.qml">qml/pages/SettingsPage.qml</file>
     </qresource>
     <qresource prefix="/">

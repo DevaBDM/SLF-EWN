@@ -18,7 +18,7 @@ ApplicationWindow {
     palette.text: Theme.text
     palette.button: Theme.bgCard
     palette.buttonText: Theme.text
-    palette.highlight: "#243044"
+    palette.highlight: "#1A211E"
     palette.highlightedText: Theme.text
     palette.placeholderText: Theme.textDim
 
@@ -28,34 +28,31 @@ ApplicationWindow {
         opacity: Auth.authenticated ? 1 : 0
         enabled: Auth.authenticated
         visible: opacity > 0.01
-        Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+        Behavior on opacity { NumberAnimation { duration: Theme.motion; easing.type: Easing.OutCubic } }
 
-        // The layout reserves only the collapsed rail. Hover-expansion floats
-        // over the canvas, so content never shifts under the pointer; pinning is
-        // the one deliberate action that reflows.
+        TopBar {
+            id: topbar
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            z: 30
+        }
+
         Item {
             id: railSpace
             anchors.left: parent.left
-            anchors.top: parent.top
+            anchors.top: topbar.bottom
             anchors.bottom: parent.bottom
             width: sidebar.pinned ? sidebar.panelWidth : sidebar.railWidth
-            Behavior on width { NumberAnimation { duration: 170; easing.type: Easing.OutCubic } }
+            Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
         }
 
         Sidebar {
             id: sidebar
             anchors.left: parent.left
-            anchors.top: parent.top
+            anchors.top: topbar.bottom
             anchors.bottom: parent.bottom
             z: 20
-        }
-
-        TopBar {
-            id: topbar
-            anchors.left: railSpace.right
-            anchors.right: parent.right
-            anchors.top: parent.top
-            z: 1
         }
 
         Item {
@@ -70,28 +67,28 @@ ApplicationWindow {
                 opacity: App.page === 0 ? 1 : 0
                 enabled: App.page === 0
                 visible: opacity > 0.01
-                Behavior on opacity { NumberAnimation { duration: 150 } }
+                Behavior on opacity { NumberAnimation { duration: 180 } }
             }
             AlertLogPage {
                 anchors.fill: parent
                 opacity: App.page === 1 ? 1 : 0
                 enabled: App.page === 1
                 visible: opacity > 0.01
-                Behavior on opacity { NumberAnimation { duration: 150 } }
+                Behavior on opacity { NumberAnimation { duration: 180 } }
             }
-            MapPage {
+            GeoMapPage {
                 anchors.fill: parent
-                opacity: App.page === 2 ? 1 : 0
+                visible: App.page === 2
                 enabled: App.page === 2
-                visible: opacity > 0.01
-                Behavior on opacity { NumberAnimation { duration: 150 } }
+                opacity: App.page === 2 ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: 180 } }
             }
             SettingsPage {
                 anchors.fill: parent
                 opacity: App.page === 3 ? 1 : 0
                 enabled: App.page === 3
                 visible: opacity > 0.01
-                Behavior on opacity { NumberAnimation { duration: 150 } }
+                Behavior on opacity { NumberAnimation { duration: 180 } }
             }
 
             DetailPanel {
@@ -114,19 +111,14 @@ ApplicationWindow {
         sourceComponent: loginComponent
         opacity: Auth.authenticated ? 0 : 1
         visible: opacity > 0.01
-        Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.InOutQuad } }
-
-        // Drop the credential form once it has faded out so a later sign-out
-        // always starts from empty fields.
+        Behavior on opacity { NumberAnimation { duration: Theme.motion; easing.type: Easing.InOutQuad } }
         onOpacityChanged: if (opacity < 0.01 && Auth.authenticated) active = false
-
         Connections {
             target: Auth
             function onLoggedOut() { loginLoader.active = true }
         }
     }
 
-    // Read-only guests get a single explanatory toast instead of silent no-ops.
     Rectangle {
         id: toast
         z: 200
@@ -135,7 +127,7 @@ ApplicationWindow {
         anchors.bottomMargin: 32
         width: toastText.implicitWidth + 28
         height: toastText.implicitHeight + 16
-        radius: 10
+        radius: 8
         color: Theme.warning
         opacity: 0
         visible: opacity > 0.01
@@ -144,7 +136,7 @@ ApplicationWindow {
             id: toastText
             anchors.centerIn: parent
             text: "Read-only session — sign in as admin to change this"
-            color: "#FFFFFF"
+            color: Theme.actionInk
             font.family: App.uiFont
             font.pixelSize: 12
             font.weight: Font.DemiBold
@@ -152,9 +144,9 @@ ApplicationWindow {
 
         SequentialAnimation {
             id: toastAnim
-            NumberAnimation { target: toast; property: "opacity"; to: 1; duration: 140 }
+            NumberAnimation { target: toast; property: "opacity"; to: 1; duration: 180 }
             PauseAnimation { duration: 2200 }
-            NumberAnimation { target: toast; property: "opacity"; to: 0; duration: 260 }
+            NumberAnimation { target: toast; property: "opacity"; to: 0; duration: 200 }
         }
 
         Connections {
