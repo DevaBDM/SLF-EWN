@@ -10,6 +10,7 @@
 #include "controller/AuthController.h"
 #include "controller/NodeManager.h"
 
+#include <QDateTime>
 #include <QObject>
 #include <QSerialPortInfo>
 #include <QTimer>
@@ -65,6 +66,16 @@ class AppController : public QObject
     Q_PROPERTY(QString rxTail READ rxTail NOTIFY linkStatsChanged)
     Q_PROPERTY(QString linkDiagnosis READ linkDiagnosis NOTIFY linkStatsChanged)
     Q_PROPERTY(QString sourceLabel READ sourceLabel NOTIFY connectionChanged)
+    Q_PROPERTY(bool dumpBusy READ dumpBusy NOTIFY dumpStatsChanged)
+    Q_PROPERTY(bool fullDumpBusy READ fullDumpBusy NOTIFY dumpStatsChanged)
+    Q_PROPERTY(int lastRecordId READ lastRecordId NOTIFY dumpStatsChanged)
+    Q_PROPERTY(bool hasLastRecordId READ hasLastRecordId NOTIFY dumpStatsChanged)
+    Q_PROPERTY(int receiverWriteCount READ receiverWriteCount NOTIFY dumpStatsChanged)
+    Q_PROPERTY(int receiverFreeRecords READ receiverFreeRecords NOTIFY dumpStatsChanged)
+    Q_PROPERTY(QString dumpPhase READ dumpPhase NOTIFY dumpStatsChanged)
+    Q_PROPERTY(QString dumpStatus READ dumpStatus NOTIFY dumpStatsChanged)
+    Q_PROPERTY(QString serialTrace READ serialTrace NOTIFY dumpStatsChanged)
+    Q_PROPERTY(int dumpPercent READ dumpPercent NOTIFY dumpStatsChanged)
 
 public:
     explicit AppController(QObject *parent = nullptr);
@@ -118,8 +129,23 @@ public:
     QString rxTail() const { return serial_.rawTailHex(); }
     QString linkDiagnosis() const;
     QString sourceLabel() const;
+    bool dumpBusy() const { return serial_.dumpBusy(); }
+    bool fullDumpBusy() const { return serial_.fullDumpBusy(); }
+    int lastRecordId() const { return serial_.hasLastRecordId() ? int(serial_.lastRecordId()) : -1; }
+    bool hasLastRecordId() const { return serial_.hasLastRecordId(); }
+    int receiverWriteCount() const { return int(serial_.writeCount()); }
+    int receiverFreeRecords() const { return int(serial_.freeRecords()); }
+    QString dumpPhase() const { return serial_.dumpPhase(); }
+    QString dumpStatus() const { return serial_.dumpStatus(); }
+    QString serialTrace() const { return serial_.serialTrace(); }
+    int dumpPercent() const { return serial_.dumpPercent(); }
 
     Q_INVOKABLE void refreshPorts();
+    Q_INVOKABLE void refreshFromReceiver();
+    Q_INVOKABLE void clearReceiverLog();
+    Q_INVOKABLE void clearSerialTrace();
+    Q_INVOKABLE bool addNodeAt(int deviceId, double lat, double lon);
+    Q_INVOKABLE int parseDeviceId(const QString &text) const;
     Q_INVOKABLE void flushStore();
     Q_INVOKABLE void copyToClipboard(const QString &text);
     Q_INVOKABLE void connectSerial();
@@ -132,6 +158,21 @@ public:
     Q_INVOKABLE void clearAlerts();
     Q_INVOKABLE bool exportAlerts(const QUrl &url);
     Q_INVOKABLE void setZoneLabel(int deviceId, const QString &label);
+    Q_INVOKABLE void assignNode(int deviceId, const QString &placeId);
+    Q_INVOKABLE void deleteNode(int deviceId);
+    Q_INVOKABLE void setNodeGeo(int deviceId, double lat, double lon, double alt);
+    Q_INVOKABLE void moveNodeOnMap(int deviceId, double lat, double lon, const QString &placeId);
+    Q_INVOKABLE void updateNodeMeta(int deviceId, const QString &locationName, const QString &description);
+    Q_INVOKABLE QString createPlaceCoverage(const QString &name, const QString &notes,
+                                            double lat1, double lon1, double lat2, double lon2);
+    Q_INVOKABLE bool updatePlaceInfo(const QString &id, const QString &name, const QString &notes);
+    Q_INVOKABLE void setNodeThresholds(int deviceId, bool custom, float moistureWarning, float moistureCritical, float tiltWarning, float tiltCritical);
+    Q_INVOKABLE QString createPlace(const QString &name, const QString &notes, float x, float y, float w, float h,
+                                    double lat1, double lon1, double alt1, double lat2, double lon2, double alt2);
+    Q_INVOKABLE bool updatePlace(const QString &id, const QString &name, const QString &notes, float x, float y, float w, float h,
+                                 double lat1, double lon1, double alt1, double lat2, double lon2, double alt2);
+    Q_INVOKABLE bool deletePlace(const QString &id);
+    Q_INVOKABLE void setNodeMapPos(int deviceId, float x, float y);
     Q_INVOKABLE QVariantList moistureSeries(int range) const;
     Q_INVOKABLE QVariantList tiltSeries(int range) const;
     Q_INVOKABLE QString statusLabel(int status) const;
@@ -152,6 +193,7 @@ signals:
     void chartNeedsReload();
     void storeChanged();
     void linkStatsChanged();
+    void dumpStatsChanged();
     void permissionDenied();
 
 private:
@@ -162,8 +204,10 @@ private:
     void startSimulation();
     void stopSimulation();
     void seedHistory();
-    void openSerialNow();
+    void openSerialNow(bool userInitiated = false);
     void tryAutoConnect();
+    void beginReceiverSession();
+    void persistLastRid();
     static int portPreference(const QSerialPortInfo &info);
     TimeRange toRange(int range) const;
     QVariantList seriesOf(quint16 id, int range, int field) const;
@@ -180,10 +224,13 @@ private:
     QTimer storeStatsTimer_;
     QTimer portScanTimer_;
     QTimer linkStatsTimer_;
+    QTimer dumpPollTimer_;
     QString storeStatus_;
     int storedSamples_ = 0;
     int storedAlerts_ = 0;
     bool linkStatsDirty_ = false;
+    bool handshakePending_ = false;
+    QDateTime lastDumpAt_;
 
     int page_ = 0;
     ConnectionState connection_ = ConnectionState::Disconnected;

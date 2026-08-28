@@ -9,8 +9,8 @@
 #include <QFontDatabase>
 #include <QGuiApplication>
 #include <QLocale>
+#include <QRectF>
 #include <QSerialPortInfo>
-#include <QSet>
 #include <QTextStream>
 #include <QUrl>
 
@@ -58,6 +58,14 @@ AppController::AppController(QObject *parent)
     }
     simulationEnabled_ = db_.setting(QStringLiteral("app.simulation"), QStringLiteral("0")) == QLatin1String("1");
     portName_ = db_.setting(QStringLiteral("app.port"));
+    {
+        const QString rid = db_.setting(QStringLiteral("rx.lastRid"));
+        bool ok = false;
+        const quint32 v = rid.toUInt(&ok);
+        if (ok && !rid.isEmpty())
+            serial_.setLastRecordId(v, true);
+        lastDumpAt_ = QDateTime::fromString(db_.setting(QStringLiteral("rx.lastDumpAt")), Qt::ISODate);
+    }
 
     connect(&sim_, &SimulatedTelemetrySource::packetReceived, &manager_, &NodeManager::ingest);
     connect(&serial_, &SerialPortReader::packetReceived, &manager_, &NodeManager::ingest);
@@ -70,6 +78,13 @@ AppController::AppController(QObject *parent)
             emit selectedChanged();
             emit chartNeedsReload();
         }
+    });
+    connect(&manager_, &NodeManager::nodeRemoved, this, [this](quint16 id) {
+        nodes_->handleNodeRemoved(id);
+        if (selectedId_ == int(id))
+            closeDetail();
+        emit countsChanged();
+        emit mapNodesChanged();
     });
     connect(&manager_, &NodeManager::alertRaised, this, [this](const AlertRecord &a) {
         alerts_->handleAlertRaised(a);
@@ -106,6 +121,40 @@ AppController::AppController(QObject *parent)
     // cable must not leave the dashboard showing a healthy connection.
     connect(&serial_, &SerialPortReader::connectionStateChanged, this, &AppController::handleSerialState);
     connect(&serial_, &SerialPortReader::statsChanged, this, [this]() { linkStatsDirty_ = true; });
+    connect(&serial_, &SerialPortReader::dumpBusyChanged, this, [this]() { emit dumpStatsChanged(); });
+    connect(&serial_, &SerialPortReader::traceChanged, this, [this]() {
+        emit dumpStatsChanged();
+        linkStatsDirty_ = true;
+    });
+    connect(&serial_, &SerialPortReader::statusReceived, this, [this](quint32 writeCount, quint32 freeRecords) {
+        Q_UNUSED(freeRecords);
+        emit dumpStatsChanged();
+        emit linkStatsChanged();
+        if (!handshakePending_)
+            return;
+        handshakePending_ = false;
+        if (writeCount == 0)
+            return;
+        const bool longOffline = !lastDumpAt_.isValid()
+                                 || lastDumpAt_.secsTo(QDateTime::currentDateTime()) > kLongOfflineSecs;
+        if (!serial_.hasLastRecordId() || longOffline || serial_.lastRecordId() + 1 > writeCount)
+            serial_.requestFullDump();
+        else
+            serial_.requestIncremental();
+    });
+    connect(&serial_, &SerialPortReader::dumpFinished, this, [this](int, quint32) {
+        persistLastRid();
+        emit dumpStatsChanged();
+        emit linkStatsChanged();
+    });
+    connect(&serial_, &SerialPortReader::protocolError, this, [this](quint8) {
+        if (handshakePending_) {
+            handshakePending_ = false;
+            if (serial_.isOpen())
+                serial_.requestFullDump();
+        }
+        emit dumpStatsChanged();
+    });
 
     // Ports appear and disappear while the app runs; rescan so a receiver
     // plugged in after launch shows up without restarting.
@@ -122,6 +171,16 @@ AppController::AppController(QObject *parent)
         emit linkStatsChanged();
     });
     linkStatsTimer_.start();
+
+    dumpPollTimer_.setInterval(4000);
+    connect(&dumpPollTimer_, &QTimer::timeout, this, [this]() {
+        if (!serial_.isOpen() || serial_.dumpBusy() || handshakePending_)
+            return;
+        if (connection_ != ConnectionState::Connected)
+            return;
+        serial_.requestIncremental();
+    });
+    dumpPollTimer_.start();
 
     // Buffered telemetry must reach disk even on a clean shutdown that does not
     // run this object's destructor first.
@@ -225,6 +284,20 @@ QVariantMap AppController::selectedNode() const
     m["tiltMag"] = n.latest.tiltMagnitudeDeg();
     m["relativeTime"] = relativeTime(n.latest.timestamp, QDateTime::currentDateTime());
     m["everSeen"] = n.everSeen;
+    m["hasGeo"] = n.profile.hasGeo();
+    m["latitude"] = n.profile.latitude;
+    m["longitude"] = n.profile.longitude;
+    m["altitude"] = n.profile.altitude;
+    const Thresholds th = manager_.thresholdsFor(n.profile.deviceId);
+    m["customThresholds"] = n.profile.useCustomThresholds;
+    m["moistureWarning"] = th.moistureWarning;
+    m["moistureCritical"] = th.moistureCritical;
+    m["tiltWarning"] = th.tiltWarningDeg;
+    m["tiltCritical"] = th.tiltCriticalDeg;
+    m["autoAssigned"] = n.profile.autoAssigned;
+    m["zoneId"] = n.profile.zoneId;
+    m["locationName"] = n.profile.locationName;
+    m["description"] = n.profile.description;
     return m;
 }
 
@@ -241,7 +314,24 @@ QVariantList AppController::mapNodes() const
         m["acknowledged"] = n.acknowledged;
         m["x"] = n.profile.mapPos.x();
         m["y"] = n.profile.mapPos.y();
+        m["zoneId"] = n.profile.zoneId;
         m["everSeen"] = n.everSeen;
+        m["moisture"] = n.latest.moisturePercent();
+        m["tiltMag"] = n.latest.tiltMagnitudeDeg();
+        m["assigned"] = !n.profile.zoneId.isEmpty() && n.profile.zoneId != QLatin1String("none");
+        m["hasGeo"] = n.profile.hasGeo();
+        m["latitude"] = n.profile.latitude;
+        m["longitude"] = n.profile.longitude;
+        m["altitude"] = n.profile.altitude;
+        const Thresholds th = manager_.thresholdsFor(id);
+        m["customThresholds"] = n.profile.useCustomThresholds;
+        m["moistureWarning"] = th.moistureWarning;
+        m["moistureCritical"] = th.moistureCritical;
+        m["tiltWarning"] = th.tiltWarningDeg;
+        m["tiltCritical"] = th.tiltCriticalDeg;
+        m["autoAssigned"] = n.profile.autoAssigned;
+        m["locationName"] = n.profile.locationName;
+        m["description"] = n.profile.description;
         out.append(m);
     }
     return out;
@@ -254,10 +344,20 @@ QVariantList AppController::zones() const
         QVariantMap m;
         m["id"] = z.id;
         m["name"] = z.name;
+        m["notes"] = z.notes;
         m["x"] = z.bounds.x();
         m["y"] = z.bounds.y();
         m["w"] = z.bounds.width();
         m["h"] = z.bounds.height();
+        m["color"] = z.color.isEmpty() ? QStringLiteral("#5C6573") : z.color;
+        m["lat1"] = z.lat1;
+        m["lon1"] = z.lon1;
+        m["alt1"] = z.alt1;
+        m["lat2"] = z.lat2;
+        m["lon2"] = z.lon2;
+        m["alt2"] = z.alt2;
+        m["hasCoverage"] = z.hasCoverage();
+        m["coverage"] = z.coverageLabel();
         out.append(m);
     }
     return out;
@@ -267,14 +367,8 @@ QStringList AppController::zoneNames() const
 {
     QStringList names;
     names.append(QString());
-    QSet<QString> seen;
-    for (quint16 id : manager_.nodeIds()) {
-        const QString z = manager_.node(id).profile.zoneLabel;
-        if (!z.isEmpty() && !seen.contains(z)) {
-            seen.insert(z);
-            names.append(z);
-        }
-    }
+    for (const ZoneDef &z : manager_.zones())
+        names.append(z.name);
     return names;
 }
 
@@ -390,11 +484,15 @@ QString AppController::linkDiagnosis() const
     if (connection_ != ConnectionState::Connected)
         return lastError_.isEmpty() ? QStringLiteral("Port closed.") : lastError_;
 
+    if (serial_.dumpBusy()) {
+        const QString s = serial_.dumpStatus();
+        return s.isEmpty() ? QStringLiteral("Waiting for a framed reply from the receiver…") : s;
+    }
     if (serial_.bytesReceived() == 0)
         return QStringLiteral("Port open but no bytes received — check wiring, baud rate and that the receiver is transmitting.");
     if (serial_.framesDecoded() == 0)
-        return QStringLiteral("Receiving bytes but no valid frame decoded — the sender's format does not match "
-                              "the expected 12-byte layout (ID, moisture, tiltX/Y/Z, status, CRC-8).");
+        return QStringLiteral("Receiving bytes but no 0xAA-framed reply yet — press Refresh to send FULL_DUMP (0x44). "
+                              "The receiver only answers commands.");
     if (serial_.discardedBytes() > serial_.framesDecoded() * kPacketSize)
         return QStringLiteral("Frames decoding, but many bytes are being dropped — check for noise or a mismatched baud rate.");
     return QStringLiteral("Link healthy — frames decoding and being stored.");
@@ -467,14 +565,15 @@ int AppController::portPreference(const QSerialPortInfo &info)
     return score;
 }
 
-void AppController::openSerialNow()
+void AppController::openSerialNow(bool userInitiated)
 {
     if (portName_.isEmpty() && !ports_.isEmpty())
         setPortName(ports_.first());
     if (portName_.isEmpty()) {
         lastError_ = QStringLiteral("No serial port available — plug in the receiver, then press Rescan");
         applyConnectionState(ConnectionState::Failed);
-        emit serialShake();
+        if (userInitiated)
+            emit serialShake();
         emit linkStatsChanged();
         return;
     }
@@ -489,7 +588,8 @@ void AppController::openSerialNow()
     } else {
         lastError_ = serial_.lastError();
         applyConnectionState(ConnectionState::Failed);
-        emit serialShake();
+        if (userInitiated)
+            emit serialShake();
         if (simulationEnabled_)
             startSimulation();
     }
@@ -515,7 +615,7 @@ void AppController::connectSerial()
         return;
     userHeldDisconnect_ = false;
     refreshPorts();
-    openSerialNow();
+    openSerialNow(true);
 }
 
 void AppController::disconnectSerial()
@@ -532,14 +632,100 @@ void AppController::disconnectSerial()
 }
 
 // Reacts to the port dropping out on its own (unplug, driver reset, read error).
+void AppController::beginReceiverSession()
+{
+    if (!serial_.isOpen())
+        return;
+    handshakePending_ = true;
+    serial_.requestStatus();
+}
+
+void AppController::persistLastRid()
+{
+    if (serial_.hasLastRecordId()) {
+        lastDumpAt_ = QDateTime::currentDateTime();
+        db_.setSetting(QStringLiteral("rx.lastRid"), QString::number(serial_.lastRecordId()));
+        db_.setSetting(QStringLiteral("rx.lastDumpAt"), lastDumpAt_.toString(Qt::ISODate));
+    } else {
+        lastDumpAt_ = QDateTime();
+        db_.setSetting(QStringLiteral("rx.lastRid"), QString());
+        db_.setSetting(QStringLiteral("rx.lastDumpAt"), QString());
+    }
+}
+
+void AppController::refreshFromReceiver()
+{
+    if (!serial_.isOpen()) {
+        lastError_ = QStringLiteral("Connect the receiver before refreshing");
+        emit connectionChanged();
+        emit serialShake();
+        return;
+    }
+    handshakePending_ = false;
+    serial_.requestFullDump();
+    emit dumpStatsChanged();
+}
+
+void AppController::clearSerialTrace()
+{
+    serial_.clearTrace();
+    emit dumpStatsChanged();
+}
+
+void AppController::clearReceiverLog()
+{
+    if (!requireAdmin())
+        return;
+    if (!serial_.isOpen()) {
+        lastError_ = QStringLiteral("Connect the receiver before clearing its log");
+        emit connectionChanged();
+        emit serialShake();
+        return;
+    }
+    handshakePending_ = false;
+    serial_.requestClear();
+    emit dumpStatsChanged();
+}
+
+int AppController::parseDeviceId(const QString &text) const
+{
+    QString s = text.trimmed().toUpper();
+    if (s.startsWith(QLatin1String("NODE")))
+        s = s.mid(4);
+    if (s.startsWith(QLatin1String("0X")))
+        s = s.mid(2);
+    bool ok = false;
+    uint v = s.toUInt(&ok, 10);
+    if (!ok)
+        v = s.toUInt(&ok, 16);
+    if (!ok || v == 0 || v > 0xFFFF)
+        return 0;
+    return int(v);
+}
+
+bool AppController::addNodeAt(int deviceId, double lat, double lon)
+{
+    if (!requireAdmin())
+        return false;
+    if (deviceId <= 0 || deviceId > 0xFFFF || !geoValid(lat, lon))
+        return false;
+    manager_.setNodeGeo(static_cast<quint16>(deviceId), lat, lon, qQNaN());
+    return true;
+}
+
 void AppController::handleSerialState(ConnectionState s)
 {
     if (s == ConnectionState::Connected) {
         applyConnectionState(s);
+        QTimer::singleShot(2000, this, [this]() {
+            if (serial_.isOpen() && connection_ == ConnectionState::Connected)
+                beginReceiverSession();
+        });
         return;
     }
     if (s != ConnectionState::Failed && s != ConnectionState::Disconnected)
         return;
+    handshakePending_ = false;
     if (connection_ != ConnectionState::Connected && connection_ != ConnectionState::Connecting)
         return;
 
@@ -622,6 +808,135 @@ void AppController::setZoneLabel(int deviceId, const QString &label)
     if (!requireAdmin())
         return;
     manager_.setZoneLabel(static_cast<quint16>(deviceId), label);
+}
+
+void AppController::assignNode(int deviceId, const QString &placeId)
+{
+    if (!requireAdmin())
+        return;
+    manager_.assignNode(static_cast<quint16>(deviceId), placeId, true);
+}
+
+void AppController::deleteNode(int deviceId)
+{
+    if (!requireAdmin())
+        return;
+    if (selectedId_ == deviceId)
+        closeDetail();
+    manager_.removeNode(static_cast<quint16>(deviceId));
+}
+
+void AppController::setNodeGeo(int deviceId, double lat, double lon, double alt)
+{
+    if (!requireAdmin())
+        return;
+    manager_.setNodeGeo(static_cast<quint16>(deviceId), lat, lon, alt);
+}
+
+void AppController::moveNodeOnMap(int deviceId, double lat, double lon, const QString &placeId)
+{
+    if (!requireAdmin())
+        return;
+    if (deviceId <= 0 || deviceId > 0xFFFF || !geoValid(lat, lon))
+        return;
+    manager_.moveNodeOnMap(static_cast<quint16>(deviceId), lat, lon, placeId);
+}
+
+void AppController::updateNodeMeta(int deviceId, const QString &locationName, const QString &description)
+{
+    if (!requireAdmin())
+        return;
+    manager_.setNodeMeta(static_cast<quint16>(deviceId), locationName, description);
+    if (selectedId_ == deviceId)
+        emit selectedChanged();
+}
+
+QString AppController::createPlaceCoverage(const QString &name, const QString &notes,
+                                           double lat1, double lon1, double lat2, double lon2)
+{
+    return createPlace(name, notes, 0.08f, 0.08f, 0.28f, 0.24f,
+                       lat1, lon1, qQNaN(), lat2, lon2, qQNaN());
+}
+
+bool AppController::updatePlaceInfo(const QString &id, const QString &name, const QString &notes)
+{
+    if (!requireAdmin())
+        return false;
+    ZoneDef z = manager_.place(id);
+    if (z.id.isEmpty())
+        return false;
+    z.name = name;
+    z.notes = notes;
+    return manager_.upsertPlace(z);
+}
+
+void AppController::setNodeThresholds(int deviceId, bool custom, float moistureWarning, float moistureCritical,
+                                      float tiltWarning, float tiltCritical)
+{
+    if (!requireAdmin())
+        return;
+    Thresholds t;
+    t.moistureWarning = moistureWarning;
+    t.moistureCritical = moistureCritical;
+    t.tiltWarningDeg = tiltWarning;
+    t.tiltCriticalDeg = tiltCritical;
+    manager_.setNodeThresholds(static_cast<quint16>(deviceId), custom, t);
+}
+
+QString AppController::createPlace(const QString &name, const QString &notes, float x, float y, float w, float h,
+                                   double lat1, double lon1, double alt1, double lat2, double lon2, double alt2)
+{
+    if (!requireAdmin())
+        return {};
+    ZoneDef z;
+    z.id = QStringLiteral("place-%1").arg(QDateTime::currentMSecsSinceEpoch());
+    z.name = name;
+    z.notes = notes;
+    z.bounds = QRectF(x, y, w, h);
+    z.color = QStringLiteral("#4A9EFF");
+    z.lat1 = lat1;
+    z.lon1 = lon1;
+    z.alt1 = alt1;
+    z.lat2 = lat2;
+    z.lon2 = lon2;
+    z.alt2 = alt2;
+    if (!manager_.upsertPlace(z))
+        return {};
+    return z.id;
+}
+
+bool AppController::updatePlace(const QString &id, const QString &name, const QString &notes, float x, float y, float w, float h,
+                                double lat1, double lon1, double alt1, double lat2, double lon2, double alt2)
+{
+    if (!requireAdmin())
+        return false;
+    ZoneDef z = manager_.place(id);
+    if (z.id.isEmpty())
+        z.id = id;
+    z.name = name;
+    z.notes = notes;
+    z.bounds = QRectF(x, y, w, h);
+    z.lat1 = lat1;
+    z.lon1 = lon1;
+    z.alt1 = alt1;
+    z.lat2 = lat2;
+    z.lon2 = lon2;
+    z.alt2 = alt2;
+    return manager_.upsertPlace(z);
+}
+
+bool AppController::deletePlace(const QString &id)
+{
+    if (!requireAdmin())
+        return false;
+    return manager_.removePlace(id);
+}
+
+void AppController::setNodeMapPos(int deviceId, float x, float y)
+{
+    if (!requireAdmin())
+        return;
+    manager_.setMapPos(static_cast<quint16>(deviceId), QPointF(x, y));
 }
 
 QVariantList AppController::moistureSeries(int range) const
@@ -741,9 +1056,10 @@ void AppController::detectFonts()
         }
         return fallback;
     };
-    uiFont_ = pick({QStringLiteral("IBM Plex Sans"), QStringLiteral("Inter"), QStringLiteral("Segoe UI")},
+    uiFont_ = pick({QStringLiteral("Inter"), QStringLiteral("Geist"), QStringLiteral("Geist Sans"),
+                    QStringLiteral("Segoe UI Variable"), QStringLiteral("Segoe UI")},
                    QStringLiteral("Segoe UI"));
-    monoFont_ = pick({QStringLiteral("IBM Plex Mono"), QStringLiteral("JetBrains Mono"),
+    monoFont_ = pick({QStringLiteral("JetBrains Mono"), QStringLiteral("IBM Plex Mono"),
                       QStringLiteral("Cascadia Mono"), QStringLiteral("Consolas")},
                      QStringLiteral("Consolas"));
 }
