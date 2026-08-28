@@ -69,13 +69,30 @@ bool AuthController::login(const QString &username, const QString &password)
 
 bool AuthController::loginAsGuest()
 {
+    return loginAsRole(QStringLiteral("guest"));
+}
+
+bool AuthController::loginAsRole(const QString &name)
+{
     if (locked()) {
         setError(QStringLiteral("Locked — wait %1 s").arg(lockRemaining_));
         emit loginRejected();
         return false;
     }
-    beginSession(QStringLiteral("guest"), Role::Guest);
-    return true;
+
+    const QString role = name.trimmed().toLower();
+    if (role == QLatin1String("guest")) {
+        beginSession(QStringLiteral("guest"), Role::Guest);
+        return true;
+    }
+    if (role == QLatin1String("admin")) {
+        beginSession(QStringLiteral("admin"), Role::Admin);
+        return true;
+    }
+
+    setError(QStringLiteral("Type admin or guest"));
+    emit loginRejected();
+    return false;
 }
 
 void AuthController::logout()

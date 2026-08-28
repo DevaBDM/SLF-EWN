@@ -44,6 +44,7 @@ public:
 
     Q_INVOKABLE bool login(const QString &username, const QString &password);
     Q_INVOKABLE bool loginAsGuest();
+    Q_INVOKABLE bool loginAsRole(const QString &name);
     Q_INVOKABLE void logout();
     Q_INVOKABLE void clearError();
 
