@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(landslide_device C)
+project(landslidetransmiiter_device C)
 
 # ---- Language standard: strict ISO C, no compiler-specific extensions -----
 # Extensions off = no GNU-isms creeping in (statement expressions, typeof,
@@ -14,7 +14,7 @@ set(F_CPU "8000000UL")
 set(PROGRAMMER "usbasp")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(HEX_OUTPUT_PATH
-    "/mnt/d/DevaBDM/Embedded Systems/Proteus/LandSlideDetector"
+    "/mnt/d/DevaBDM/Embedded Systems/Proteus/LandSlideTransmitter"
     CACHE PATH "Directory to place generated HEX file")
 set(HEX_FILE "${HEX_OUTPUT_PATH}/${PROJECT_NAME}.hex")
 
