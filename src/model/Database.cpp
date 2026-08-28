@@ -38,6 +38,20 @@ QDateTime fromMsecs(qint64 ms)
     return ms > 0 ? QDateTime::fromMSecsSinceEpoch(ms) : QDateTime();
 }
 
+QVariant realOrNull(double v)
+{
+    return qIsFinite(v) ? QVariant(v) : QVariant();
+}
+
+double fromSqlReal(const QVariant &v)
+{
+    if (!v.isValid() || v.isNull())
+        return qQNaN();
+    bool ok = false;
+    const double d = v.toDouble(&ok);
+    return ok ? d : qQNaN();
+}
+
 } // namespace
 
 Database::Database(QObject *parent)
@@ -87,6 +101,7 @@ bool Database::open(QString *errorOut)
     if (!createSchema(errorOut))
         return false;
 
+    seedDefaultPlaces();
     seedDefaultAccounts();
 
     QSqlQuery count(db_);
@@ -132,6 +147,15 @@ bool Database::createSchema(QString *errorOut)
                        "zone_label TEXT,"
                        "map_x REAL,"
                        "map_y REAL)"),
+        QStringLiteral("CREATE TABLE IF NOT EXISTS places ("
+                       "id TEXT PRIMARY KEY,"
+                       "name TEXT NOT NULL,"
+                       "notes TEXT,"
+                       "x REAL NOT NULL,"
+                       "y REAL NOT NULL,"
+                       "w REAL NOT NULL,"
+                       "h REAL NOT NULL,"
+                       "color TEXT)"),
         QStringLiteral("CREATE TABLE IF NOT EXISTS samples ("
                        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
                        "device_id INTEGER NOT NULL,"
@@ -171,7 +195,44 @@ bool Database::createSchema(QString *errorOut)
             return false;
         }
     }
+    migrateColumns();
     return true;
+}
+
+void Database::ensureColumn(const QString &table, const QString &column, const QString &decl)
+{
+    QSqlQuery info(db_);
+    if (!info.exec(QStringLiteral("PRAGMA table_info(%1)").arg(table)))
+        return;
+    while (info.next()) {
+        if (info.value(1).toString().compare(column, Qt::CaseInsensitive) == 0)
+            return;
+    }
+    QSqlQuery alter(db_);
+    alter.exec(QStringLiteral("ALTER TABLE %1 ADD COLUMN %2 %3").arg(table, column, decl));
+}
+
+void Database::migrateColumns()
+{
+    ensureColumn(QStringLiteral("nodes"), QStringLiteral("latitude"), QStringLiteral("REAL"));
+    ensureColumn(QStringLiteral("nodes"), QStringLiteral("longitude"), QStringLiteral("REAL"));
+    ensureColumn(QStringLiteral("nodes"), QStringLiteral("altitude"), QStringLiteral("REAL"));
+    ensureColumn(QStringLiteral("nodes"), QStringLiteral("m_warn"), QStringLiteral("REAL"));
+    ensureColumn(QStringLiteral("nodes"), QStringLiteral("m_crit"), QStringLiteral("REAL"));
+    ensureColumn(QStringLiteral("nodes"), QStringLiteral("t_warn"), QStringLiteral("REAL"));
+    ensureColumn(QStringLiteral("nodes"), QStringLiteral("t_crit"), QStringLiteral("REAL"));
+    ensureColumn(QStringLiteral("nodes"), QStringLiteral("use_custom_th"), QStringLiteral("INTEGER NOT NULL DEFAULT 0"));
+    ensureColumn(QStringLiteral("nodes"), QStringLiteral("auto_assigned"), QStringLiteral("INTEGER NOT NULL DEFAULT 0"));
+    ensureColumn(QStringLiteral("nodes"), QStringLiteral("manual_place"), QStringLiteral("INTEGER NOT NULL DEFAULT 0"));
+    ensureColumn(QStringLiteral("nodes"), QStringLiteral("location_name"), QStringLiteral("TEXT"));
+    ensureColumn(QStringLiteral("nodes"), QStringLiteral("description"), QStringLiteral("TEXT"));
+
+    ensureColumn(QStringLiteral("places"), QStringLiteral("lat1"), QStringLiteral("REAL"));
+    ensureColumn(QStringLiteral("places"), QStringLiteral("lon1"), QStringLiteral("REAL"));
+    ensureColumn(QStringLiteral("places"), QStringLiteral("alt1"), QStringLiteral("REAL"));
+    ensureColumn(QStringLiteral("places"), QStringLiteral("lat2"), QStringLiteral("REAL"));
+    ensureColumn(QStringLiteral("places"), QStringLiteral("lon2"), QStringLiteral("REAL"));
+    ensureColumn(QStringLiteral("places"), QStringLiteral("alt2"), QStringLiteral("REAL"));
 }
 
 void Database::seedDefaultAccounts()
@@ -377,7 +438,11 @@ QVector<NodeProfile> Database::loadProfiles()
 {
     QVector<NodeProfile> out;
     QSqlQuery q(db_);
-    if (!q.exec(QStringLiteral("SELECT device_id, zone_id, zone_label, map_x, map_y FROM nodes")))
+    if (!q.exec(QStringLiteral("SELECT device_id, zone_id, zone_label, map_x, map_y,"
+                               " latitude, longitude, altitude,"
+                               " m_warn, m_crit, t_warn, t_crit,"
+                               " use_custom_th, auto_assigned, manual_place,"
+                               " location_name, description FROM nodes")))
         return out;
     while (q.next()) {
         NodeProfile p;
@@ -385,6 +450,26 @@ QVector<NodeProfile> Database::loadProfiles()
         p.zoneId = q.value(1).toString();
         p.zoneLabel = q.value(2).toString();
         p.mapPos = QPointF(q.value(3).toDouble(), q.value(4).toDouble());
+        p.latitude = fromSqlReal(q.value(5));
+        p.longitude = fromSqlReal(q.value(6));
+        p.altitude = fromSqlReal(q.value(7));
+        const double mw = fromSqlReal(q.value(8));
+        const double mc = fromSqlReal(q.value(9));
+        const double tw = fromSqlReal(q.value(10));
+        const double tc = fromSqlReal(q.value(11));
+        if (qIsFinite(mw))
+            p.thresholds.moistureWarning = float(mw);
+        if (qIsFinite(mc))
+            p.thresholds.moistureCritical = float(mc);
+        if (qIsFinite(tw))
+            p.thresholds.tiltWarningDeg = float(tw);
+        if (qIsFinite(tc))
+            p.thresholds.tiltCriticalDeg = float(tc);
+        p.useCustomThresholds = q.value(12).toInt() != 0;
+        p.autoAssigned = q.value(13).toInt() != 0;
+        p.manualPlace = q.value(14).toInt() != 0;
+        p.locationName = q.value(15).toString();
+        p.description = q.value(16).toString();
         out.append(p);
     }
     return out;
@@ -393,19 +478,151 @@ QVector<NodeProfile> Database::loadProfiles()
 void Database::saveProfile(const NodeProfile &profile)
 {
     QSqlQuery q(db_);
-    q.prepare(QStringLiteral("INSERT INTO nodes (device_id, zone_id, zone_label, map_x, map_y)"
-                             " VALUES (?, ?, ?, ?, ?)"
+    q.prepare(QStringLiteral("INSERT INTO nodes (device_id, zone_id, zone_label, map_x, map_y,"
+                             " latitude, longitude, altitude,"
+                             " m_warn, m_crit, t_warn, t_crit,"
+                             " use_custom_th, auto_assigned, manual_place,"
+                             " location_name, description)"
+                             " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
                              " ON CONFLICT(device_id) DO UPDATE SET"
                              " zone_id = excluded.zone_id,"
                              " zone_label = excluded.zone_label,"
                              " map_x = excluded.map_x,"
-                             " map_y = excluded.map_y"));
+                             " map_y = excluded.map_y,"
+                             " latitude = excluded.latitude,"
+                             " longitude = excluded.longitude,"
+                             " altitude = excluded.altitude,"
+                             " m_warn = excluded.m_warn,"
+                             " m_crit = excluded.m_crit,"
+                             " t_warn = excluded.t_warn,"
+                             " t_crit = excluded.t_crit,"
+                             " use_custom_th = excluded.use_custom_th,"
+                             " auto_assigned = excluded.auto_assigned,"
+                             " manual_place = excluded.manual_place,"
+                             " location_name = excluded.location_name,"
+                             " description = excluded.description"));
     q.addBindValue(profile.deviceId);
     q.addBindValue(profile.zoneId);
     q.addBindValue(profile.zoneLabel);
     q.addBindValue(profile.mapPos.x());
     q.addBindValue(profile.mapPos.y());
+    q.addBindValue(realOrNull(profile.latitude));
+    q.addBindValue(realOrNull(profile.longitude));
+    q.addBindValue(realOrNull(profile.altitude));
+    q.addBindValue(profile.thresholds.moistureWarning);
+    q.addBindValue(profile.thresholds.moistureCritical);
+    q.addBindValue(profile.thresholds.tiltWarningDeg);
+    q.addBindValue(profile.thresholds.tiltCriticalDeg);
+    q.addBindValue(profile.useCustomThresholds ? 1 : 0);
+    q.addBindValue(profile.autoAssigned ? 1 : 0);
+    q.addBindValue(profile.manualPlace ? 1 : 0);
+    q.addBindValue(profile.locationName);
+    q.addBindValue(profile.description);
     q.exec();
+}
+
+void Database::deleteProfile(quint16 deviceId)
+{
+    if (!db_.isOpen())
+        return;
+    QSqlQuery q(db_);
+    q.prepare(QStringLiteral("DELETE FROM nodes WHERE device_id = ?"));
+    q.addBindValue(deviceId);
+    q.exec();
+}
+
+QVector<ZoneDef> Database::loadPlaces()
+{
+    QVector<ZoneDef> out;
+    if (!db_.isOpen())
+        return out;
+    QSqlQuery q(db_);
+    if (!q.exec(QStringLiteral("SELECT id, name, notes, x, y, w, h, color,"
+                               " lat1, lon1, alt1, lat2, lon2, alt2 FROM places ORDER BY name")))
+        return out;
+    while (q.next()) {
+        ZoneDef z;
+        z.id = q.value(0).toString();
+        z.name = q.value(1).toString();
+        z.notes = q.value(2).toString();
+        z.bounds = QRectF(q.value(3).toDouble(), q.value(4).toDouble(),
+                          q.value(5).toDouble(), q.value(6).toDouble());
+        z.color = q.value(7).toString();
+        z.lat1 = fromSqlReal(q.value(8));
+        z.lon1 = fromSqlReal(q.value(9));
+        z.alt1 = fromSqlReal(q.value(10));
+        z.lat2 = fromSqlReal(q.value(11));
+        z.lon2 = fromSqlReal(q.value(12));
+        z.alt2 = fromSqlReal(q.value(13));
+        out.append(z);
+    }
+    return out;
+}
+
+bool Database::savePlace(const ZoneDef &place)
+{
+    if (!db_.isOpen() || place.id.isEmpty() || place.name.trimmed().isEmpty())
+        return false;
+    QSqlQuery q(db_);
+    q.prepare(QStringLiteral("INSERT INTO places (id, name, notes, x, y, w, h, color,"
+                             " lat1, lon1, alt1, lat2, lon2, alt2)"
+                             " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                             " ON CONFLICT(id) DO UPDATE SET"
+                             " name = excluded.name,"
+                             " notes = excluded.notes,"
+                             " x = excluded.x, y = excluded.y,"
+                             " w = excluded.w, h = excluded.h,"
+                             " color = excluded.color,"
+                             " lat1 = excluded.lat1, lon1 = excluded.lon1, alt1 = excluded.alt1,"
+                             " lat2 = excluded.lat2, lon2 = excluded.lon2, alt2 = excluded.alt2"));
+    q.addBindValue(place.id);
+    q.addBindValue(place.name.trimmed());
+    q.addBindValue(place.notes);
+    q.addBindValue(place.bounds.x());
+    q.addBindValue(place.bounds.y());
+    q.addBindValue(place.bounds.width());
+    q.addBindValue(place.bounds.height());
+    q.addBindValue(place.color);
+    q.addBindValue(realOrNull(place.lat1));
+    q.addBindValue(realOrNull(place.lon1));
+    q.addBindValue(realOrNull(place.alt1));
+    q.addBindValue(realOrNull(place.lat2));
+    q.addBindValue(realOrNull(place.lon2));
+    q.addBindValue(realOrNull(place.alt2));
+    if (!q.exec()) {
+        lastError_ = q.lastError().text();
+        return false;
+    }
+    return true;
+}
+
+bool Database::deletePlace(const QString &id)
+{
+    if (!db_.isOpen() || id.isEmpty())
+        return false;
+    QSqlQuery q(db_);
+    q.prepare(QStringLiteral("DELETE FROM places WHERE id = ?"));
+    q.addBindValue(id);
+    return q.exec();
+}
+
+void Database::seedDefaultPlaces()
+{
+    if (!db_.isOpen())
+        return;
+    QSqlQuery count(db_);
+    if (count.exec(QStringLiteral("SELECT COUNT(*) FROM places")) && count.next() && count.value(0).toInt() > 0)
+        return;
+
+    const QVector<ZoneDef> defaults = {
+        {QStringLiteral("north"), QStringLiteral("North Slope"), QStringLiteral("Mine Area A"), QRectF(0.06, 0.08, 0.42, 0.36), QStringLiteral("#3DDC97")},
+        {QStringLiteral("south"), QStringLiteral("South Berm"),  QStringLiteral("Drainage B"),  QRectF(0.08, 0.52, 0.36, 0.38), QStringLiteral("#5B9BD5")},
+        {QStringLiteral("east"),  QStringLiteral("East Face"),   QStringLiteral("Tunnel Adit C"), QRectF(0.54, 0.10, 0.40, 0.40), QStringLiteral("#C4A35A")},
+        {QStringLiteral("west"),  QStringLiteral("West Cut"),    QStringLiteral("Stockpile D"), QRectF(0.50, 0.56, 0.28, 0.32), QStringLiteral("#8FA6B2")},
+        {QStringLiteral("road"),  QStringLiteral("Access Road"), QStringLiteral("Culvert E"),   QRectF(0.80, 0.58, 0.16, 0.30), QStringLiteral("#4A9EFF")},
+    };
+    for (const ZoneDef &z : defaults)
+        savePlace(z);
 }
 
 void Database::queueSample(quint16 deviceId, const Sample &sample, NodeStatus status)

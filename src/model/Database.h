@@ -65,6 +65,13 @@ public:
     // --- node profiles ---
     QVector<NodeProfile> loadProfiles();
     void saveProfile(const NodeProfile &profile);
+    void deleteProfile(quint16 deviceId);
+
+    // --- places / zones ---
+    QVector<ZoneDef> loadPlaces();
+    bool savePlace(const ZoneDef &place);
+    bool deletePlace(const QString &id);
+    void seedDefaultPlaces();
 
     // --- telemetry ---
     void queueSample(quint16 deviceId, const Sample &sample, NodeStatus status);
@@ -94,6 +101,8 @@ public:
 
 private:
     bool createSchema(QString *errorOut);
+    void migrateColumns();
+    void ensureColumn(const QString &table, const QString &column, const QString &decl);
     void seedDefaultAccounts();
     static QString makeSalt();
     static QString hashPassword(const QString &password, const QString &salt);
