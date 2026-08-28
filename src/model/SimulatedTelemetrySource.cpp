@@ -3,6 +3,7 @@
 
 #include <QRandomGenerator>
 #include <QtMath>
+#include <algorithm>
 
 namespace Slf {
 
@@ -91,13 +92,10 @@ QVector<Sample> SimulatedTelemetrySource::makeHistory(quint16 deviceId, const QD
         Sample s;
         s.timestamp = until.addSecs(-i * 60);
         s.moisture = n.moisture;
-        const float xg = n.tiltX / 1000.f;
-        const float yg = n.tiltY / 1000.f;
-        const float zg = n.tiltZ / 1000.f;
-        s.tiltXDeg = std::atan2(xg, std::sqrt(yg * yg + zg * zg)) * 180.f / float(M_PI);
-        s.tiltYDeg = std::atan2(yg, std::sqrt(xg * xg + zg * zg)) * 180.f / float(M_PI);
-        s.tiltMagDeg = std::atan2(std::sqrt(xg * xg + yg * yg), zg) * 180.f / float(M_PI);
-        s.tiltZDeg = s.tiltMagDeg;
+        s.tiltXDeg = tiltRawToDeg(static_cast<qint16>(n.tiltX));
+        s.tiltYDeg = tiltRawToDeg(static_cast<qint16>(n.tiltY));
+        s.tiltZDeg = tiltRawToDeg(static_cast<qint16>(n.tiltZ));
+        s.tiltMagDeg = std::max({std::fabs(s.tiltXDeg), std::fabs(s.tiltYDeg), std::fabs(s.tiltZDeg)});
         out.append(s);
     }
     return out;
