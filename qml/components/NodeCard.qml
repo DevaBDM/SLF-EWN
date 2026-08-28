@@ -20,218 +20,169 @@ Item {
     property real shownZ: 0
     property color chipColor: Theme.statusColor(status)
     property real lift: 0
-    property real statusGlow: 0
-    property real breath: 0.4
+    property real press: 1
     property bool ready: false
-
     readonly property bool criticalLive: status === 3 && !acknowledged
+    readonly property bool warnLive: status === 2 || criticalLive
 
-    Behavior on shownMoisture { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-    Behavior on shownX { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-    Behavior on shownY { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-    Behavior on shownZ { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-    Behavior on chipColor { ColorAnimation { duration: 300 } }
-    Behavior on lift { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+    Behavior on shownMoisture { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+    Behavior on shownX { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+    Behavior on shownY { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+    Behavior on shownZ { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+    Behavior on chipColor { ColorAnimation { duration: 200 } }
+    Behavior on lift { NumberAnimation { duration: Theme.motion; easing.type: Easing.OutCubic } }
+    Behavior on press { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
 
     onMoistureChanged: shownMoisture = moisture
     onTiltXChanged: shownX = tiltX
     onTiltYChanged: shownY = tiltY
     onTiltZChanged: shownZ = tiltZ
-    onStatusChanged: {
-        chipColor = Theme.statusColor(status)
-        if (ready)
-            glowAnim.restart()
-    }
+    onStatusChanged: chipColor = Theme.statusColor(status)
 
-    SequentialAnimation {
-        id: glowAnim
-        NumberAnimation { target: root; property: "statusGlow"; to: 1; duration: 140; easing.type: Easing.OutQuad }
-        NumberAnimation { target: root; property: "statusGlow"; to: 0; duration: 260; easing.type: Easing.InQuad }
-    }
-
-    SequentialAnimation on breath {
-        running: root.criticalLive
-        loops: Animation.Infinite
-        NumberAnimation { from: 0.4; to: 1.0; duration: 800; easing.type: Easing.InOutSine }
-        NumberAnimation { from: 1.0; to: 0.4; duration: 800; easing.type: Easing.InOutSine }
-    }
-
-    transform: Translate { id: mount; y: 12 }
+    scale: press
     opacity: 0
-
     Component.onCompleted: {
         shownMoisture = moisture
         shownX = tiltX
         shownY = tiltY
         shownZ = tiltZ
         appear.start()
-        Qt.callLater(function() { ready = true })
+        ready = true
     }
+    NumberAnimation { id: appear; target: root; property: "opacity"; to: 1; duration: Theme.motion; easing.type: Easing.OutCubic }
 
-    ParallelAnimation {
-        id: appear
-        NumberAnimation { target: root; property: "opacity"; to: 1; duration: 250; easing.type: Easing.OutCubic }
-        NumberAnimation { target: mount; property: "y"; to: 0; duration: 250; easing.type: Easing.OutCubic }
-    }
-
-    // Drop shadow
     Rectangle {
         anchors.fill: card
-        anchors.topMargin: 4 + root.lift
-        anchors.bottomMargin: -4 - root.lift * 1.5
-        anchors.leftMargin: -1
-        anchors.rightMargin: -1
-        radius: 7
-        color: "#000000"
-        opacity: mouse.containsMouse ? 0.42 : 0.22
-        Behavior on opacity { NumberAnimation { duration: 150 } }
-    }
-
-    // Critical / status glow ring
-    Rectangle {
-        anchors.fill: card
-        anchors.margins: -3
-        radius: 9
-        color: "transparent"
-        border.width: 2
-        border.color: root.chipColor
-        opacity: root.criticalLive ? root.breath * 0.55 : root.statusGlow * 0.7
-        visible: opacity > 0.02
+        anchors.margins: -6
+        radius: 16
+        color: root.chipColor
+        opacity: mouse.containsMouse ? 0.12 : 0
+        Behavior on opacity { NumberAnimation { duration: Theme.motion } }
     }
 
     Rectangle {
         id: card
         anchors.fill: parent
-        anchors.margins: 4
-        anchors.topMargin: 4 - root.lift
-        anchors.bottomMargin: 4 + root.lift
-        radius: 6
-        color: mouse.containsMouse ? Theme.bgCardHover : Theme.bgCard
+        anchors.topMargin: -root.lift
+        anchors.bottomMargin: root.lift
+        radius: Theme.radiusCard
+        color: mouse.containsMouse ? Theme.bgElevated : Theme.bgCard
         border.width: 1
-        border.color: {
-            if (root.criticalLive)
-                return Qt.rgba(chipColor.r, chipColor.g, chipColor.b, 0.45 + breath * 0.4)
-            if (root.statusGlow > 0.05)
-                return Qt.rgba(chipColor.r, chipColor.g, chipColor.b, 0.35 + statusGlow * 0.45)
-            return Theme.border
-        }
-        Behavior on color { ColorAnimation { duration: 150 } }
+        border.color: mouse.containsMouse
+                      ? Qt.rgba(chipColor.r, chipColor.g, chipColor.b, 0.50)
+                      : Theme.border
+        Behavior on color { ColorAnimation { duration: Theme.motion } }
+        Behavior on border.color { ColorAnimation { duration: Theme.motion } }
 
-        Rectangle {
-            width: parent.width - 2
-            height: 1
-            x: 1
-            y: 1
-            color: "#FFFFFF"
-            opacity: 0.045
-            radius: 1
-        }
+        Column {
+            anchors.fill: parent
+            anchors.margins: 20
+            spacing: 0
 
-        MessageBanner {
-            x: 14
-            y: 10
-            compact: true
-            kind: {
-                if (root.status === 3) return "critical"
-                if (root.status === 2) return "warning"
-                if (root.status === 1) return "safe"
-                return "info"
+            Row {
+                width: parent.width
+                StatusChip {
+                    text: Theme.statusLabel(root.status)
+                    tone: root.chipColor
+                }
+                Item { width: 8; height: 1 }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: root.relativeTime
+                    color: Theme.textDim
+                    font.family: App.monoFont
+                    font.pixelSize: 12
+                }
             }
-            text: Theme.statusLabel(root.status)
-        }
 
-        Text {
-            anchors.right: parent.right
-            anchors.rightMargin: 14
-            y: 12
-            text: root.relativeTime
-            color: Theme.textDim
-            font.family: App.monoFont
-            font.pixelSize: 11
-        }
+            Item { width: 1; height: 12 }
 
-        Text {
-            x: 14
-            y: 36
-            text: root.idString
-            color: Theme.text
-            font.family: App.monoFont
-            font.pixelSize: 13
-            font.weight: Font.DemiBold
-        }
+            Text {
+                text: root.idString
+                color: Theme.text
+                font.family: App.monoFont
+                font.pixelSize: 13
+                font.weight: Font.DemiBold
+                font.capitalization: Font.AllUppercase
+                font.letterSpacing: 0.6
+            }
+            Text {
+                width: parent.width
+                text: root.zone
+                elide: Text.ElideRight
+                color: Theme.textMuted
+                font.family: App.uiFont
+                font.pixelSize: 12
+            }
 
-        Text {
-            x: 14
-            y: 54
-            width: parent.width - 28
-            text: root.zone
-            elide: Text.ElideRight
-            color: Theme.textMuted
-            font.family: App.uiFont
-            font.pixelSize: 12
-        }
+            Item { width: 1; height: 10 }
 
-        Text {
-            x: 14
-            y: 74
-            text: root.shownMoisture.toFixed(1) + "%"
-            color: Theme.text
-            font.family: App.monoFont
-            font.pixelSize: 28
-            font.weight: Font.Medium
-        }
+            Text {
+                text: root.shownMoisture.toFixed(1) + "%"
+                color: Theme.text
+                font.family: App.monoFont
+                font.pixelSize: 30
+                font.weight: Font.Bold
+            }
+            Text {
+                text: "Moisture"
+                color: Theme.textMuted
+                font.family: App.uiFont
+                font.pixelSize: 11
+                font.weight: Font.Medium
+            }
 
-        Text {
-            x: 14
-            y: 108
-            text: "MOISTURE"
-            color: Theme.textDim
-            font.family: App.uiFont
-            font.pixelSize: 9
-            font.letterSpacing: 1.3
-            font.weight: Font.DemiBold
-        }
+            Item { width: 1; height: 12 }
 
-        Row {
-            x: 14
-            y: 126
-            spacing: 16
-            Repeater {
-                model: [
-                    { k: "X", v: root.shownX },
-                    { k: "Y", v: root.shownY },
-                    { k: "Z", v: root.shownZ }
-                ]
-                delegate: Column {
-                    spacing: 1
-                    Text {
-                        text: (modelData.v >= 0 ? "+" : "") + modelData.v.toFixed(1) + "°"
-                        color: Theme.text
-                        font.family: App.monoFont
-                        font.pixelSize: 14
-                    }
-                    Text {
-                        text: "TILT " + modelData.k
-                        color: Theme.textDim
-                        font.family: App.uiFont
-                        font.pixelSize: 8
-                        font.letterSpacing: 0.8
+            Row {
+                width: parent.width
+                height: 28
+                spacing: 0
+                Repeater {
+                    model: [
+                        { k: "Tilt X", v: root.shownX },
+                        { k: "Y", v: root.shownY },
+                        { k: "Z", v: root.shownZ }
+                    ]
+                    delegate: Row {
+                        height: 28
+                        Rectangle {
+                            visible: index > 0
+                            width: 1
+                            height: 22
+                            color: Theme.border
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        Column {
+                            width: 64
+                            leftPadding: index > 0 ? 12 : 0
+                            spacing: 2
+                            Text {
+                                text: (modelData.v >= 0 ? "+" : "") + modelData.v.toFixed(1) + "°"
+                                color: Theme.text
+                                font.family: App.monoFont
+                                font.pixelSize: 13
+                            }
+                            Text {
+                                text: modelData.k
+                                color: Theme.textMuted
+                                font.family: App.uiFont
+                                font.pixelSize: 11
+                                font.weight: Font.Medium
+                            }
+                        }
                     }
                 }
             }
-        }
 
-        Sparkline {
-            id: spark
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
-            anchors.leftMargin: 12
-            anchors.rightMargin: 12
-            anchors.bottomMargin: 10
-            height: 28
-            values: root.sparkline
-            lineColor: root.chipColor
+            Item { width: 1; height: 8 }
+
+            Sparkline {
+                width: parent.width
+                height: 48
+                values: root.sparkline
+                lineColor: root.chipColor
+            }
         }
     }
 
@@ -241,7 +192,9 @@ Item {
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         onEntered: root.lift = 2
-        onExited: root.lift = 0
+        onExited: { root.lift = 0; root.press = 1 }
+        onPressed: root.press = 0.98
+        onReleased: root.press = 1
         onClicked: App.openDetail(root.deviceId)
     }
 }

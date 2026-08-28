@@ -10,27 +10,28 @@ Item {
     property alias input: field
     signal submitted()
 
-    implicitHeight: 56
+    implicitHeight: root.label.length ? 58 : 36
     implicitWidth: 280
 
     Text {
         id: caption
+        visible: root.label.length > 0
+        height: visible ? implicitHeight : 0
         text: root.label
-        color: field.activeFocus ? Theme.text : Theme.textDim
+        color: field.activeFocus ? Theme.text : Theme.textMuted
         font.family: App.uiFont
-        font.pixelSize: 10
-        font.letterSpacing: 1.1
-        font.weight: Font.DemiBold
+        font.pixelSize: 11
+        font.weight: Font.Medium
         Behavior on color { ColorAnimation { duration: 120 } }
     }
 
     Rectangle {
-        anchors.top: caption.bottom
-        anchors.topMargin: 6
+        anchors.top: caption.visible ? caption.bottom : parent.top
+        anchors.topMargin: caption.visible ? 6 : 0
         anchors.left: parent.left
         anchors.right: parent.right
-        height: 34
-        radius: 4
+        height: 36
+        radius: Theme.radiusCtl
         color: Theme.bgInset
         border.width: 1
         border.color: field.activeFocus ? Theme.action : Theme.border
@@ -39,8 +40,8 @@ Item {
         TextField {
             id: field
             anchors.fill: parent
-            anchors.leftMargin: 10
-            anchors.rightMargin: 10
+            anchors.leftMargin: 11
+            anchors.rightMargin: 11
             verticalAlignment: Text.AlignVCenter
             color: Theme.text
             font.family: root.password ? App.monoFont : App.uiFont

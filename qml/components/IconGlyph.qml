@@ -54,6 +54,15 @@ Item {
                 ctx.moveTo(x + iw * 0.12, y + ih * 0.90)
                 ctx.lineTo(x + iw * 0.88, y + ih * 0.90)
                 ctx.stroke()
+            } else if (root.name === "zones") {
+                const g = 1.8
+                const cw = (iw - g) / 2
+                const ch = (ih - g) / 2
+                roundRect(ctx, x, y, cw, ch, 1.2)
+                roundRect(ctx, x + cw + g, y, cw, ch, 1.2)
+                roundRect(ctx, x, y + ch + g, cw, ch, 1.2)
+                roundRect(ctx, x + cw + g, y + ch + g, cw, ch, 1.2)
+                ctx.stroke()
             } else if (root.name === "settings") {
                 ctx.arc(x + iw * 0.5, y + ih * 0.5, iw * 0.18, 0, Math.PI * 2)
                 ctx.stroke()

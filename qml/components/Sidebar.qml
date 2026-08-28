@@ -8,25 +8,60 @@ Rectangle {
     color: Theme.bgSidebar
     clip: true
 
-    readonly property int railWidth: 72
+    readonly property int railWidth: Theme.railWidth
     readonly property int panelWidth: 240
 
-    // Pinned wins over hover so the panel can be locked open while working in
-    // it. Popup tracking keeps it open when the cursor moves onto a dropdown
-    // that renders outside the sidebar's own bounds.
+    // HoverHandler tracks the pointer inside this item even when it is over a
+    // ComboBox or button. A short hold after leave stops expand/collapse
+    // flicker at the serial dock.
     property bool pinned: false
-    property bool expanded: pinned || hover.containsMouse || serial.popupOpen
+    property bool holdOpen: false
+    readonly property bool expanded: pinned || holdOpen || serial.popupOpen
 
     width: expanded ? panelWidth : railWidth
-    Behavior on width { NumberAnimation { duration: 170; easing.type: Easing.OutCubic } }
+    Behavior on width { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
 
-    // Depth cue only while floating over content.
+    HoverHandler {
+        id: hover
+        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+        onHoveredChanged: {
+            if (hovered) {
+                closeHold.stop()
+                root.holdOpen = true
+            } else if (!root.pinned && !serial.popupOpen) {
+                closeHold.restart()
+            }
+        }
+    }
+
+    Timer {
+        id: closeHold
+        interval: 280
+        repeat: false
+        onTriggered: {
+            if (!hover.hovered && !serial.popupOpen && !root.pinned)
+                root.holdOpen = false
+        }
+    }
+
+    Connections {
+        target: serial
+        function onPopupOpenChanged() {
+            if (serial.popupOpen) {
+                closeHold.stop()
+                root.holdOpen = true
+            } else if (!hover.hovered && !root.pinned) {
+                closeHold.restart()
+            }
+        }
+    }
+
     Rectangle {
         anchors.left: parent.right
         width: 12
         height: parent.height
         opacity: root.expanded && !root.pinned ? 1 : 0
-        Behavior on opacity { NumberAnimation { duration: 170 } }
+        Behavior on opacity { NumberAnimation { duration: 160 } }
         gradient: Gradient {
             orientation: Gradient.Horizontal
             GradientStop { position: 0.0; color: "#66000000" }
@@ -39,15 +74,6 @@ Rectangle {
         width: 1
         height: parent.height
         color: Theme.borderSoft
-    }
-
-    // Hover sensor only: it never accepts buttons, so every click falls through
-    // to the controls stacked above it.
-    MouseArea {
-        id: hover
-        anchors.fill: parent
-        hoverEnabled: true
-        acceptedButtons: Qt.NoButton
     }
 
     Item {
@@ -78,16 +104,14 @@ Rectangle {
                 opacity: root.expanded ? 1 : 0
                 visible: opacity > 0.02
                 Behavior on opacity { NumberAnimation { duration: 140 } }
-                text: "SUBSURFACE MONITOR"
+                text: "Subsurface monitor"
                 color: Theme.textDim
                 font.family: App.uiFont
-                font.pixelSize: 10
-                font.letterSpacing: 0.6
+                font.pixelSize: 11
+                font.letterSpacing: 0
             }
         }
 
-        // Lock the panel open. Without this the rail is hover-only, and any
-        // control inside it disappears the moment you reach for something else.
         Rectangle {
             id: pinBtn
             anchors.right: parent.right
@@ -99,7 +123,7 @@ Rectangle {
             opacity: root.expanded ? 1 : 0
             visible: opacity > 0.02
             Behavior on opacity { NumberAnimation { duration: 140 } }
-            color: pinMouse.containsMouse ? "#1A2430" : "transparent"
+            color: pinMouse.containsMouse ? Theme.bgCard : "transparent"
             border.color: root.pinned ? Theme.action : "transparent"
             border.width: 1
 
@@ -126,17 +150,27 @@ Rectangle {
         }
     }
 
-    Column {
+    Flickable {
+        id: navFlick
         anchors.top: brand.bottom
-        anchors.topMargin: 28
+        anchors.topMargin: 20
         anchors.left: parent.left
         anchors.right: parent.right
-        spacing: 4
+        anchors.bottom: serial.top
+        clip: true
+        contentHeight: navCol.height
+        boundsBehavior: Flickable.StopAtBounds
 
-        NavItem { pageIndex: 0; title: "Dashboard"; icon: "dashboard"; expanded: root.expanded; onClicked: App.page = 0 }
-        NavItem { pageIndex: 1; title: "Alert Log"; icon: "alerts"; expanded: root.expanded; onClicked: App.page = 1 }
-        NavItem { pageIndex: 2; title: "Map View"; icon: "map"; expanded: root.expanded; onClicked: App.page = 2 }
-        NavItem { pageIndex: 3; title: "Settings"; icon: "settings"; expanded: root.expanded; onClicked: App.page = 3 }
+        Column {
+            id: navCol
+            width: navFlick.width
+            spacing: 4
+
+            NavItem { pageIndex: 0; title: "Dashboard"; icon: "dashboard"; expanded: root.expanded; onClicked: App.page = 0 }
+            NavItem { pageIndex: 1; title: "Alert Log"; icon: "alerts"; expanded: root.expanded; onClicked: App.page = 1 }
+            NavItem { pageIndex: 2; title: "Map View"; icon: "map"; expanded: root.expanded; onClicked: App.page = 2 }
+            NavItem { pageIndex: 3; title: "Settings"; icon: "settings"; expanded: root.expanded; onClicked: App.page = 3 }
+        }
     }
 
     SerialBar {

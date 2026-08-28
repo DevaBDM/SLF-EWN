@@ -19,6 +19,16 @@ Item {
 
     Rectangle {
         anchors.centerIn: parent
+        width: 14
+        height: 14
+        radius: 7
+        color: root.dotColor
+        opacity: 0.22
+        visible: root.linkState === 2 || root.linkState === 1
+    }
+
+    Rectangle {
+        anchors.centerIn: parent
         width: 8
         height: 8
         radius: 4

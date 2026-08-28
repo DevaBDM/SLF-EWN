@@ -4,53 +4,32 @@ import QtQuick.Controls
 Item {
     id: root
     property bool expanded: true
+    property bool popupOpen: false
 
-    // The sidebar reads this so it stays open while the dropdown is on screen.
-    // Without it the popup dies the instant the pointer leaves the rail.
-    property bool popupOpen: portBox.popup.visible
-
-    height: expanded ? 186 : 64
-    Behavior on height { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+    height: expanded ? 248 : 64
 
     Rectangle {
         anchors.top: parent.top
         width: parent.width
         height: 1
         color: Theme.borderSoft
+        opacity: root.expanded ? 1 : 0
     }
 
     Column {
-        anchors.fill: parent
-        anchors.leftMargin: expanded ? 12 : 8
-        anchors.rightMargin: expanded ? 12 : 8
-        anchors.topMargin: 12
+        id: controls
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: statusRow.top
+        anchors.bottomMargin: 8
+        anchors.leftMargin: 12
+        anchors.rightMargin: 12
         spacing: 8
-
-        Row {
-            spacing: 8
-            anchors.horizontalCenter: expanded ? undefined : parent.horizontalCenter
-            StatusDot {
-                id: dot
-                linkState: App.connectionState
-                anchors.verticalCenter: parent.verticalCenter
-            }
-            Text {
-                opacity: root.expanded ? 1 : 0
-                visible: opacity > 0.02
-                Behavior on opacity { NumberAnimation { duration: 140 } }
-                text: App.connectionState === 4 ? "SIMULATED" : "SERIAL"
-                color: App.connectionState === 4 ? Theme.warning : Theme.textDim
-                font.family: App.uiFont
-                font.pixelSize: 10
-                font.letterSpacing: 1.1
-                font.weight: Font.DemiBold
-                anchors.verticalCenter: parent.verticalCenter
-            }
-        }
+        visible: root.expanded
+        opacity: root.expanded ? 1 : 0
 
         ComboBox {
             id: portBox
-            visible: root.expanded
             enabled: Auth.isAdmin && App.connectionState !== 2
             width: parent.width
             height: 28
@@ -71,22 +50,10 @@ Item {
             }
             Component.onCompleted: selectCurrent()
 
-            transform: Translate { id: shakeX }
-            SequentialAnimation {
-                id: shake
-                running: false
-                NumberAnimation { target: shakeX; property: "x"; to: 4; duration: 40 }
-                NumberAnimation { target: shakeX; property: "x"; to: -4; duration: 40 }
-                NumberAnimation { target: shakeX; property: "x"; to: 4; duration: 40 }
-                NumberAnimation { target: shakeX; property: "x"; to: -4; duration: 40 }
-                NumberAnimation { target: shakeX; property: "x"; to: 4; duration: 40 }
-                NumberAnimation { target: shakeX; property: "x"; to: 0; duration: 40 }
-            }
             Connections {
                 target: App
                 function onPortsChanged() { portBox.selectCurrent() }
                 function onConnectionChanged() { portBox.selectCurrent() }
-                function onSerialShake() { shake.restart() }
             }
 
             background: Rectangle {
@@ -117,6 +84,8 @@ Item {
                 width: portBox.width
                 implicitHeight: Math.min(contentItem.implicitHeight + 2, 180)
                 padding: 1
+                closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+                onVisibleChanged: root.popupOpen = visible
                 background: Rectangle {
                     color: Theme.bgCard
                     border.color: Theme.border
@@ -136,7 +105,7 @@ Item {
                 height: 26
                 highlighted: portBox.highlightedIndex === index
                 background: Rectangle {
-                    color: highlighted ? "#1A2430" : "transparent"
+                    color: highlighted ? Theme.bgCard : "transparent"
                 }
                 contentItem: Text {
                     leftPadding: 8
@@ -151,7 +120,6 @@ Item {
         }
 
         Row {
-            visible: root.expanded
             width: parent.width
             spacing: 8
 
@@ -180,7 +148,6 @@ Item {
         }
 
         IndustrialButton {
-            visible: root.expanded
             enabled: Auth.isAdmin
             width: parent.width
             compact: true
@@ -193,6 +160,56 @@ Item {
                 else {
                     App.refreshPorts()
                     App.connectSerial()
+                }
+            }
+        }
+        IndustrialButton {
+            enabled: App.connectionState === 2 && !App.dumpBusy
+            width: parent.width
+            compact: true
+            primary: true
+            text: App.dumpBusy ? (App.dumpPhase.length ? App.dumpPhase : "Working…") : "Refresh"
+            onClicked: App.refreshFromReceiver()
+        }
+    }
+
+    Row {
+        id: statusRow
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.leftMargin: root.expanded ? 12 : 0
+        anchors.rightMargin: root.expanded ? 12 : 0
+        anchors.bottomMargin: 12
+        spacing: 8
+        height: 20
+
+        Item {
+            width: root.expanded ? implicitWidth : parent.width
+            height: parent.height
+            implicitWidth: inner.implicitWidth
+
+            Row {
+                id: inner
+                spacing: 8
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.horizontalCenter: root.expanded ? undefined : parent.horizontalCenter
+
+                StatusDot {
+                    linkState: App.connectionState
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                Text {
+                    visible: root.expanded
+                    text: App.dumpBusy && App.dumpPhase.length ? App.dumpPhase
+                        : (App.connectionState === 4 ? "SIMULATED" : "SERIAL")
+                    color: App.dumpBusy ? Theme.action
+                        : (App.connectionState === 4 ? Theme.warning : Theme.textDim)
+                    font.family: App.uiFont
+                    font.pixelSize: 10
+                    font.letterSpacing: 1.1
+                    font.weight: Font.DemiBold
+                    anchors.verticalCenter: parent.verticalCenter
                 }
             }
         }

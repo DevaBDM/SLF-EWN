@@ -25,7 +25,7 @@ Rectangle {
                 Rectangle {
                     anchors.fill: parent
                     radius: 3
-                    color: root.currentIndex === index ? Theme.border : "transparent"
+                    color: root.currentIndex === index ? Theme.bgCard : "transparent"
                     Behavior on color { ColorAnimation { duration: 120 } }
                 }
                 Text {

@@ -17,12 +17,12 @@ Item {
         anchors.fill: parent
         anchors.leftMargin: 8
         anchors.rightMargin: 8
-        radius: 6
+        radius: Theme.radiusCtl
         color: {
             if (root.selected)
-                return "#1A2430"
+                return Theme.bgCard
             if (mouse.containsMouse)
-                return "#161B22"
+                return Theme.bgInset
             return "transparent"
         }
         Behavior on color { ColorAnimation { duration: 100 } }
@@ -43,7 +43,7 @@ Item {
         anchors.left: parent.left
         // Keeps the glyph optically centred in the 72px rail, then slides left
         // as the panel opens instead of jumping.
-        anchors.leftMargin: root.expanded ? 22 : 27
+        anchors.leftMargin: root.expanded ? 20 : 23
         Behavior on anchors.leftMargin { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
         spacing: 14
 
@@ -74,5 +74,10 @@ Item {
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         onClicked: root.clicked()
+    }
+
+    ToolTipLite {
+        show: mouse.containsMouse && !root.expanded
+        text: root.title
     }
 }

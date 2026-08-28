@@ -108,7 +108,7 @@ Item {
                     ctx.lineTo(X(pts[0].t), t + ph)
                     ctx.closePath()
                     const g = ctx.createLinearGradient(0, t, 0, t + ph)
-                    g.addColorStop(0, Qt.rgba(color.r, color.g, color.b, 0.28))
+                    g.addColorStop(0, Qt.rgba(color.r, color.g, color.b, 0.18))
                     g.addColorStop(1, Qt.rgba(color.r, color.g, color.b, 0.0))
                     ctx.fillStyle = g
                     ctx.fill()

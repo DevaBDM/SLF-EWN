@@ -2,27 +2,37 @@ pragma Singleton
 import QtQuick
 
 QtObject {
-    readonly property color bgDeep: "#12161C"
-    readonly property color bgSidebar: "#0E1218"
-    readonly property color bgTopBar: "#161B22"
-    readonly property color bgCard: "#1A1F27"
-    readonly property color bgCardHover: "#1E242E"
-    readonly property color bgInset: "#151A21"
-    readonly property color border: "#2A303B"
-    readonly property color borderSoft: "#232933"
-    readonly property color safe: "#3DDC97"
-    readonly property color warning: "#F0A63A"
-    readonly property color critical: "#E4483C"
-    readonly property color action: "#4A9EFF"
-    readonly property color text: "#E6E9EF"
-    readonly property color textMuted: "#8B93A1"
-    readonly property color textDim: "#5C6573"
-    readonly property color textFaint: "#3D4450"
-    readonly property color chartTeal: "#3DDC97"
-    readonly property color chartX: "#5B9BD5"
-    readonly property color chartY: "#C4A35A"
+    readonly property color bgDeep: "#0B0F0E"
+    readonly property color bgSidebar: "#0B0F0E"
+    readonly property color bgTopBar: "#0B0F0E"
+    readonly property color bgCard: "#121816"
+    readonly property color bgCardHover: "#1A211E"
+    readonly property color bgInset: "#0F1412"
+    readonly property color bgElevated: "#1A211E"
+    readonly property color border: "#1F2A26"
+    readonly property color borderSoft: "#1F2A26"
+    readonly property color safe: "#2DD4A8"
+    readonly property color warning: "#F5A623"
+    readonly property color critical: "#EF4444"
+    readonly property color action: "#2DD4A8"
+    readonly property color actionInk: "#0B0F0E"
+    readonly property color text: "#E8F0ED"
+    readonly property color textMuted: "#A3B5AE"
+    readonly property color textDim: "#8B9A94"
+    readonly property color textFaint: "#5C6B66"
+    readonly property color chartTeal: "#2DD4A8"
+    readonly property color chartX: "#6A9BB8"
+    readonly property color chartY: "#F5A623"
     readonly property color chartZ: "#8FA6B2"
-    readonly property color chartMag: "#E6E9EF"
+    readonly property color chartMag: "#E8F0ED"
+
+    readonly property int radiusCtl: 8
+    readonly property int radiusCard: 12
+    readonly property int padPage: 20
+    readonly property int gap: 16
+    readonly property int topBarHeight: 56
+    readonly property int railWidth: 64
+    readonly property int motion: 200
 
     function statusColor(s) {
         switch (s) {
@@ -37,7 +47,7 @@ QtObject {
         switch (t) {
         case 0: return warning
         case 1: return critical
-        case 2: return "#C62828"
+        case 2: return "#B91C1C"
         default: return textDim
         }
     }
@@ -46,18 +56,18 @@ QtObject {
         switch (kind) {
         case "safe": return safe
         case "critical": return critical
-        case "emergency": return "#C62828"
-        case "info": return action
+        case "emergency": return "#B91C1C"
+        case "info": return safe
         default: return warning
         }
     }
 
     function statusLabel(s) {
         switch (s) {
-        case 1: return "SAFE"
-        case 2: return "WARNING"
-        case 3: return "CRITICAL"
-        default: return "NO DATA"
+        case 1: return "Safe"
+        case 2: return "Warning"
+        case 3: return "Critical"
+        default: return "No data"
         }
     }
 }

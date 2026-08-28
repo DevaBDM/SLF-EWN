@@ -24,13 +24,14 @@ Item {
         target: root
         property: "slide"
         to: 0
-        duration: 200
+        duration: Theme.motion
         easing.type: Easing.OutCubic
     }
 
     Canvas {
         id: canvas
         anchors.fill: parent
+        antialiasing: true
         onPaint: {
             const ctx = getContext("2d")
             ctx.reset()
@@ -54,33 +55,35 @@ Item {
             const n = pts.length
             const dx = (width - 2) / (root.maxPoints - 1)
             const shift = -(1 - root.slide) * dx
-            const y0 = 2
+            const y0 = 3
             const y1 = height - 2
             const extra = n > root.maxPoints ? 0 : (root.maxPoints - n)
 
             function X(i) { return 1 + (i - (n - root.maxPoints) + extra) * dx + shift }
             function Y(i) { return y1 - ((pts[i] - minV) / (maxV - minV)) * (y1 - y0) }
 
+            const grad = ctx.createLinearGradient(0, y0, 0, y1)
+            grad.addColorStop(0, Qt.rgba(root.lineColor.r, root.lineColor.g, root.lineColor.b, 0.18))
+            grad.addColorStop(1, Qt.rgba(root.lineColor.r, root.lineColor.g, root.lineColor.b, 0.0))
+
             ctx.beginPath()
             ctx.moveTo(X(0), Y(0))
             for (let i = 1; i < n; ++i)
                 ctx.lineTo(X(i), Y(i))
-            ctx.strokeStyle = root.lineColor
-            ctx.lineWidth = 1.35
-            ctx.lineJoin = "round"
-            ctx.lineCap = "round"
-
             ctx.lineTo(X(n - 1), y1)
             ctx.lineTo(X(0), y1)
             ctx.closePath()
-            const fill = Qt.rgba(root.lineColor.r, root.lineColor.g, root.lineColor.b, 0.16)
-            ctx.fillStyle = fill
+            ctx.fillStyle = grad
             ctx.fill()
 
             ctx.beginPath()
             ctx.moveTo(X(0), Y(0))
             for (let i = 1; i < n; ++i)
                 ctx.lineTo(X(i), Y(i))
+            ctx.strokeStyle = root.lineColor
+            ctx.lineWidth = 1.6
+            ctx.lineJoin = "round"
+            ctx.lineCap = "round"
             ctx.stroke()
         }
     }
