@@ -7,7 +7,7 @@
 namespace Slf {
 
 // CRC-8/SMBUS — poly 0x07, init 0x00, xorout 0x00, no reflect.
-// Computed over the first 12 bytes of the 13-byte telemetry frame.
+// Computed over the first 11 bytes of the 12-byte LoRa frame.
 class Crc8
 {
 public:

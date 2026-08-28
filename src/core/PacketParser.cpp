@@ -32,10 +32,9 @@ void writeI16be(quint8 *p, qint16 v)
     writeU16be(p, static_cast<quint16>(v));
 }
 
-qint16 degToMilliG(double deg)
+qint16 degToRaw(double deg)
 {
-    const double rad = deg * M_PI / 180.0;
-    return static_cast<qint16>(qBound(-16000, int(std::tan(rad) * 1000.0), 16000));
+    return tiltDegToRaw(float(deg));
 }
 
 } // namespace
@@ -54,6 +53,17 @@ bool PacketParser::decode(const quint8 *frame, NodeData &out)
     out.hardwareStatus = frame[10];
     out.timestamp = QDateTime::currentDateTime();
     return true;
+}
+
+bool PacketParser::decodeDumpRecord(const quint8 *record16, NodeData &out, quint32 *ridOut)
+{
+    if (!record16)
+        return false;
+    const quint32 rid = (quint32(record16[0]) << 24) | (quint32(record16[1]) << 16)
+                        | (quint32(record16[2]) << 8) | quint32(record16[3]);
+    if (ridOut)
+        *ridOut = rid;
+    return decode(record16 + 4, out);
 }
 
 QByteArray PacketParser::encode(const NodeData &data)
@@ -83,11 +93,37 @@ bool PacketParser::looksLikeText(const QByteArray &bytes)
     return printable * 100 / bytes.size() >= 85;
 }
 
+bool PacketParser::parseLoraLine(const QString &text, NodeData &out)
+{
+    static const QRegularExpression re(
+        QStringLiteral(R"(NODE(\d+)_DATA:X_(-?\d+):Y_(-?\d+):Z_(-?\d+):MOIST_(\d+(?:\.\d+)?)%\s*(?::\s*EMERGENCY)?)"),
+        QRegularExpression::CaseInsensitiveOption);
+    const QRegularExpressionMatch m = re.match(text);
+    if (!m.hasMatch())
+        return false;
+
+    const uint id = m.captured(1).toUInt();
+    if (id == 0 || id > 0xFFFF)
+        return false;
+
+    out.deviceId = static_cast<quint16>(id);
+    out.tiltX = static_cast<qint16>(qBound(-32000, m.captured(2).toInt(), 32000));
+    out.tiltY = static_cast<qint16>(qBound(-32000, m.captured(3).toInt(), 32000));
+    out.tiltZ = static_cast<qint16>(qBound(-32000, m.captured(4).toInt(), 32000));
+    const double moistPct = m.captured(5).toDouble();
+    out.moistureRaw = static_cast<quint16>(qBound(0, int(moistPct * 100.0 + 0.5), 10000));
+    out.hardwareStatus = text.contains(QLatin1String("EMERGENCY"), Qt::CaseInsensitive) ? 0x80 : 0;
+    out.timestamp = QDateTime::currentDateTime();
+    return true;
+}
+
 bool PacketParser::parseAsciiLine(const QByteArray &line, NodeData &out)
 {
     const QString text = QString::fromLatin1(line).trimmed();
     if (text.isEmpty() || text.startsWith(QLatin1Char('#')))
         return false;
+    if (parseLoraLine(text, out))
+        return true;
 
     const QStringList parts = text.split(QRegularExpression(QStringLiteral("[,;\\s]+")), Qt::SkipEmptyParts);
     if (parts.size() < 5)
@@ -119,9 +155,9 @@ bool PacketParser::parseAsciiLine(const QByteArray &line, NodeData &out)
                          && (parts.at(2).contains(QLatin1Char('.')) || parts.at(3).contains(QLatin1Char('.'))
                              || (std::fabs(tx) < 90.0 && std::fabs(tz) < 90.0 && std::fabs(tz) != 1000.0));
     if (degrees && std::fabs(tz) < 200.0) {
-        out.tiltX = degToMilliG(tx);
-        out.tiltY = degToMilliG(ty);
-        out.tiltZ = degToMilliG(tz);
+        out.tiltX = degToRaw(tx);
+        out.tiltY = degToRaw(ty);
+        out.tiltZ = degToRaw(tz);
     } else {
         out.tiltX = static_cast<qint16>(qBound(-32000, int(tx), 32000));
         out.tiltY = static_cast<qint16>(qBound(-32000, int(ty), 32000));
@@ -144,18 +180,47 @@ QVector<NodeData> PacketParser::feed(const QByteArray &chunk)
     buffer_.append(chunk);
     QVector<NodeData> packets;
 
-    if (looksLikeText(buffer_) && buffer_.contains('\n')) {
-        int nl = 0;
-        while ((nl = buffer_.indexOf('\n')) >= 0) {
-            QByteArray line = buffer_.left(nl);
-            buffer_.remove(0, nl + 1);
-            if (line.endsWith('\r'))
-                line.chop(1);
+    static const QRegularExpression loraRe(
+        QStringLiteral(R"(NODE(\d+)_DATA:X_(-?\d+):Y_(-?\d+):Z_(-?\d+):MOIST_(\d+(?:\.\d+)?)%\s*(?::\s*EMERGENCY)?)"),
+        QRegularExpression::CaseInsensitiveOption);
+
+    if (looksLikeText(buffer_)) {
+        const QString text = QString::fromLatin1(buffer_);
+        int consumed = 0;
+        QRegularExpressionMatchIterator it = loraRe.globalMatch(text);
+        while (it.hasNext()) {
+            const QRegularExpressionMatch m = it.next();
             NodeData data;
-            if (parseAsciiLine(line, data))
+            if (parseLoraLine(m.captured(0), data))
                 packets.append(data);
-            else if (!line.trimmed().isEmpty())
-                discarded_ += static_cast<quint64>(line.size());
+            consumed = m.capturedEnd();
+        }
+        if (consumed > 0) {
+            buffer_.remove(0, consumed);
+        } else {
+            // Banner / "awaiting radio" lines — drop complete lines that are not telemetry.
+            int nl = 0;
+            while ((nl = buffer_.indexOf('\n')) >= 0) {
+                QByteArray line = buffer_.left(nl + 1);
+                buffer_.remove(0, nl + 1);
+                NodeData data;
+                if (parseAsciiLine(line.trimmed(), data))
+                    packets.append(data);
+                else
+                    discarded_ += static_cast<quint64>(line.size());
+            }
+            int cr = buffer_.indexOf('\r');
+            if (cr >= 0 && !buffer_.contains('\n')) {
+                QByteArray line = buffer_.left(cr);
+                buffer_.remove(0, cr + 1);
+                NodeData data;
+                if (parseAsciiLine(line.trimmed(), data))
+                    packets.append(data);
+            }
+        }
+        if (buffer_.size() > 4096) {
+            discarded_ += static_cast<quint64>(buffer_.size() - 256);
+            buffer_ = buffer_.right(256);
         }
         return packets;
     }

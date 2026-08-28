@@ -21,10 +21,12 @@ public:
     int pendingBytes() const { return buffer_.size(); }
 
     static bool decode(const quint8 *frame, NodeData &out);
+    static bool decodeDumpRecord(const quint8 *record16, NodeData &out, quint32 *ridOut = nullptr);
     static QByteArray encode(const NodeData &data);
 
 private:
     static bool parseAsciiLine(const QByteArray &line, NodeData &out);
+    static bool parseLoraLine(const QString &text, NodeData &out);
     static bool looksLikeText(const QByteArray &bytes);
 
     QByteArray buffer_;
