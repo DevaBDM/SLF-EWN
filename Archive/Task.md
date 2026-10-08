@@ -1,0 +1,3 @@
+- Don't make it too ai the dashboard
+- make the 1 layer and make it jump over or soldering
+- make .c and .h file for components don't use the library write everything by your by reading the datasheet of the components don't use library

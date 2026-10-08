@@ -1,0 +1,282 @@
+---
+tags:
+  - slf-ewn
+  - firmware
+  - avr
+  - hub
+aliases:
+  - Embedded Firmware
+  - Protocol
+  - Telemetry frame
+  - Data formats
+parent: "[[SLF-EWN Hub]]"
+status: active
+---
+
+# Firmware
+
+**C · AVR-GCC · no Arduino.** Source of truth is `Code/` — see [[Code Hub]]. Same `.hex` on the Proteus master as in the DIP-28. The master does not branch on “this is a fake chip”; the fakes speak a **thin SPI contract** (`0x8D` FIFO, 8-bit accel regs). A later Ra-02 register driver can replace the FIFO write without changing the 12-byte payload.
+
+← [[SLF-EWN Hub]] · [[Code Hub]] · Pins (sim): [[Transmitter Simulation]] · [[Receiver Simulation]] · Host: [[Dashboard Hub]]
+
+---
+
+## Two programs
+
+| | Buried node `transmitter.c` | Surface tower `receiver.c` |
+|:--|:----------------------------|:---------------------------|
+| `F_CPU` | 8 MHz internal RC | 16 MHz |
+| Power | 3.6 V, FET `PD4` | USB 5 V, no FET |
+| Job | WDT sleep → measure → LoRa TX | DIO0 ISR → flash log → **poll** UART |
+| Debug UART | **9600** 8N1 TX only (`PD1`) | **115200** 8N1 TX+RX (dashboard) |
+
+```mermaid
+stateDiagram-v2
+    [*] --> HIBERNATE
+    HIBERNATE --> ACTIVE: WDT ticks OR INT0
+    ACTIVE --> MEASURE: FET on
+    MEASURE --> TRANSMIT: FET on again + 0x8D FIFO
+    TRANSMIT --> HIBERNATE: FET off
+```
+
+`HIBERNATE`: `SLEEP_MODE_PWR_DOWN`, ADC and SPI disabled, **WDT interrupt** (not reset) and **INT0** still live. INT1 is LoRa TX-done, not a sleep wake.
+
+System-wide hop diagram: [[SLF-EWN Hub#Data flow (as built)]].
+
+---
+
+## Data formats
+
+Three layouts. Do not parse USB as if it were the 12-byte air frame.
+
+### 1. Air / ANT / LoRa payload — 12 bytes, big-endian
+
+Packed in `run_measurement_cycle()`. Same bytes on SPI after `0x8D`, on fake ANT UART, and inside flash records.
+
+```
+Offset  0        2        4        6        8        10   11
+        [ ID u16 ][ moist ][ X i16 ][ Y i16 ][ Z i16 ][st][crc]
+```
+
+| Off | Size | Field | Code |
+|:---:|:----:|:------|:-----|
+| 0 | u16 BE | Device ID | `DEVICE_ID` default **`0x0104`** → bytes `01 04` |
+| 2 | u16 BE | Moisture 0–10000 | `(adc10 * 10000) / 1023` on **ADC1** |
+| 4 | i16 BE | Tilt X | Firmware: `(reg8 - 128) * 15` (~±1920). Dashboard: raw **−1950…1950 → −180°…180°** |
+| 6 | i16 BE | Tilt Y | same |
+| 8 | i16 BE | Tilt Z | same; alarm mag = max \|axis\| in degrees |
+| 10 | u8 | Status | [[#Status byte]] |
+| 11 | u8 | CRC-8/SMBUS | poly `0x07`, init `0x00`, bytes **0–10** |
+
+Tower **drops** the frame if `crc8(rx,11) != rx[11]`. Fake LoRa TX also checks CRC before ANT.
+
+SPI to fake TX: **`0x8D`** then these 12 bytes, `_delay_us(250)` each (`transmitter.c`). Fake TX UART: 12 bytes only, `_delay_us(300)` (`fake_lora_transmitter.c`).
+
+### 2. Flash record — 16 bytes
+
+| Off | Size | Field |
+|:---:|:----:|:------|
+| 0 | u32 BE | Record ID = `write_count` at append (0, 1, 2, …) |
+| 4 | 12 B | Air frame (section 1) |
+
+Chip map: header `write_count` at **`0x000000`**, records from **`0x000010`**. Max **`(131072 − 16) / 16 = 8191`** records. **Stops** when full.
+
+### 3. Tower ↔ dashboard — 115200 8N1, PC polls
+
+Not a stream of 12-byte frames.
+
+**PC → tower:** one command byte, then optional data.
+
+| Byte | Name | Then | Meaning |
+|:----:|:-----|:-----|:--------|
+| `0x53` | `'S'` `CMD_STATUS` | — | used + free counts |
+| `0x44` | `'D'` `CMD_FULL` | — | dump **all** records |
+| `0x4E` | `'N'` `CMD_NEW` | 4-byte BE `last_id` | dump IDs **> last_id** |
+| `0x43` | `'C'` `CMD_CLEAR` | — | `write_count = 0` |
+
+Unknown → error `0x01`. `'N'` missing 4 bytes (100 ms) → error `0x02`.
+
+**Tower → PC:** 6-byte header, then `length` bytes.
+
+| Off | Size | Field |
+|:---:|:----:|:------|
+| 0 | u8 | Magic **`0xAA`** |
+| 1 | u8 | Echoed cmd (`0x53` / `0x44` / `0x4E` / `0x43` / `0xFF`) |
+| 2–5 | u32 BE | Payload length |
+
+| cmd | Payload |
+|:----|:--------|
+| `0x53` | 8 B: `write_count` u32 BE, `free` u32 BE |
+| `0x44` / `0x4E` | `N × 16` records |
+| `0x43` | empty |
+| `0xFF` | 1 B error |
+
+Example: one stored frame, full dump → header `AA 44 00 00 00 10` then 16 data bytes.
+
+**Node debug** (not USB): 9600 on buried `PD1`, ASCII only, e.g. `[NODE] ID=260 SEQ=3 …` (`0x0104` prints as **260**).
+
+Assert DTR/RTS on the dashboard port.
+
+---
+
+## Status byte
+
+```
+bit7     0x80  emergency (INT0 motion wake this cycle)
+bits 6–0 seq_counter & 0x7F   (then bit0 may be forced)
+bit0     0x01  WHO_AM_I failed — ORed last, so it overwrites seq LSB
+```
+
+`seq_counter++` every cycle. Dashboard CRITICAL on **`0x80`**. `0x01` → ignore XYZ (left 0). Fake LoRa RX prints `seq = frame[10] & 0x7F`.
+
+---
+
+## Buried node (`transmitter.c`)
+
+### Pins
+
+| Net | Pin | Code |
+|:----|:----|:-----|
+| SCK | **PB5** | shared SPI |
+| MOSI | **PB3** | shared |
+| MISO | **PB4** | shared; slaves high-Z when CS high |
+| LoRa NSS | **PB1** | `NSS_LORA_BIT` |
+| Accel CS | **PB2** | `CS_ACCEL_BIT` |
+| MOSFET gate | **PD4** | LOW = `VCC_SW` on |
+| Accel INT1 | **PD2 / INT0** | rising edge, motion detection (`ISC01\|ISC00`) |
+| LoRa DIO0 | **PD3 / INT1** | rising = TX done |
+| Moisture | **PC1 / ADC1** | 10-bit, `REFS0` = AVCC |
+| Debug TX | **PD1** | 9600 |
+| RESET | PC6 | 10 kΩ to VCC (hardware) |
+
+SPI master: **Mode 0**, `SPR0` → F_CPU/16. Shared MOSI/MISO/SCK.
+
+### Cycle
+
+1. FET **on**, 5 ms.  
+2. Accel `WHO_AM_I` + three 8-bit axis regs.  
+3. `adc_read(1)` → moisture.  
+4. FET **off**.  
+5. Pack 12 bytes + CRC.  
+6. FET **on** again, 2 ms (radio is on `VCC_SW`).  
+7. LoRa: CS low, send **`0x8D`**, then 12 payload bytes with **`_delay_us(250)`** each, CS high. Wait up to **1 s** for INT1.  
+8. FET off. Debug UART line.  
+9. Sleep until WDT or INT0.
+
+### Watchdog (not 15 min in the sim build)
+
+AVR WDT interrupt **8 s** (`WDP3|WDP0`, `WDIE`).
+
+```
+PRODUCTION_INTERVAL_S = 15 * 60
+WAKE_INTERVAL_WDT_TICKS = 15*60 / 8   → 112 ticks ≈ 14.9 min
+```
+
+**`#define SIM_FAST_WAKE 1` is currently on** — that **replaces** the interval with **1 tick ≈ 8 s**. For burial, **remove / `#undef SIM_FAST_WAKE`**.
+
+There is **no** `(device_id % 30)` jitter in this file. Anti-collision is still a planned behaviour, not implemented.
+
+INT0 (motion) breaks the WDT wait immediately; the same cycle runs with `emergency = 1`.
+
+### Moisture
+
+```c
+moisture = (raw10 * 10000UL) / 1023UL;  /* 0–10000 */
+```
+
+Printed as `moisture / 100` percent. **Linear with ADC.** Capacitive v1.2 / POT-HG in sim is **inverted** (wet → lower volts) — [[Transmitter Simulation#Moisture POT-HG]]. Until firmware inverts or calibrates, a wet pot reads as a **low** % in the packet. Document that mismatch in the report; do not “fix” the wiki independently of the `.c`.
+
+### Accelerometer
+
+ADXL345 on the **always-on 3.6 V rail** (not VCC_SW). Full-resolution ±2 g. SPI **Mode 3**.
+
+**Power modes in `transmitter_accelerometer.c`**
+
+| Mode | When | Registers |
+|:-----|:-----|:----------|
+| **Low-power wait** | MCU hibernation | `BW_RATE` = LOW_POWER + 12.5 Hz; `POWER_CTL` = MEASURE; ACTIVITY → INT1 |
+| **Measure sample** | Start of `run_measurement_cycle` | `BW_RATE` = 100 Hz; MEASURE; then read DATAX0… |
+
+Activity: `THRESH_ACT` default `0x20` (~2 g at 62.5 mg/LSB), `ACT_INACT_CTL` XYZ, `INT_ENABLE` ACTIVITY, map to INT1 → MCU **INT0**. Clear with read of `INT_SOURCE`. Tune threshold on hardware (**F8**).
+
+| Reg | Addr | Meaning |
+|:----|:----:|:--------|
+| `DEVID` | `0x00` | must be **`0xE5`** |
+| `THRESH_ACT` | `0x24` | activity threshold |
+| `POWER_CTL` | `0x2D` | MEASURE bit for both modes |
+| `INT_ENABLE` / `INT_MAP` | `0x2E` / `0x2F` | ACTIVITY on INT1 |
+| `DATAX0`… | `0x32`… | axis data (LSB first) |
+
+Conversion to tilt angle (approx):
+
+```c
+/* DATAX0 and DATAX1 form int16_t in LSB-first order */
+int16_t raw_x = (DATAX1 << 8) | DATAX0;  /* 13-bit, ±2000 mg at ±2 g range */
+int16_t tilt_x = (raw_x * 180) / 2000;    /* approx ±180 degrees */
+```
+
+If `DEVID` check fails, tilts stay 0 and status bit0 is set. Full resolution ±2 g = ±2000 mg; conversion to degrees: `mg_value / 16.0 ≈ degrees` (depends on axis orientation).
+
+---
+
+## Surface tower (`receiver.c`)
+
+Always awake. No FET.
+
+| Net | Pin | DIP-28 |
+|:----|:----|:------:|
+| SCK / MOSI / MISO | PB5 / PB3 / PB4 | 19 / 17 / 18 |
+| `RADIO_CS` | **PB2** | 16 (D8) |
+| `FLASH_CS` | **PB1** | 15 (D9) |
+| DIO0 | **PD2 / INT0** | 4 |
+| UART TX / RX | PD1 / PD0 | 3 / 2 |
+| XTAL | PB6 / PB7 | 9 / 10 |
+
+**LoRa SPI Mode 1** (`CPHA`) in the ISR: CS low, 200 µs, twelve `0xFF` clocks with 150 µs gaps, CS high. UART **UBRR=8** → 115200 @ 16 MHz. Matches [[fake_lora_receiver.c]].
+
+**Flash SPI Mode 0:** `0x06` WREN, `0x02` write + 24-bit address, `0x03` read, `0x05` RDSR bit0 busy. **No `0x20` erase** — this is the 25AA1024 / `SIM_EEPROM` path. Real W25Q64 still needs sector erase before reuse; that is **not in this file yet**.
+
+### Layout (128 KB stand-in)
+
+| Address | Use |
+|:--------|:----|
+| `0x000000` | 4-byte BE `write_count` |
+| `0x000010` | records, 16 B each |
+| Max records | `(131072 - 16) / 16` |
+
+Append: if `write_count >= EE_MAX_RECORDS`, **stop** (not a ring). Not a 256-byte RAM page buffer — each record is a 16-byte write + header update.
+
+Main loop: UART commands first, then if `packet_ready` and CRC ok → `ee_append_frame`. Wait until DIO0 goes **low** before the next ISR.
+
+---
+
+## Fake chips (Proteus only)
+
+Behaviour: [[Proteus Hub#Fake peripherals]]. Files: [[Code Hub]].
+
+---
+
+## Pre-flash (off the PCB)
+
+No ICSP on the buried board. ZIF + Arduino as ISP + AVRDUDE.
+
+| Fuse | Value | Meaning |
+|:-----|:------|:--------|
+| Low | `0xE2` | 8 MHz RC, no CKDIV8 |
+| High | `0xDA` | No bootloader |
+| Extended | `0xFD` | BOD off / 1.8 V — never Arduino 2.7 V |
+
+Tower: **16 MHz crystal fuses**, not `0xE2`.
+
+---
+
+## Checks
+
+| Test | Pass |
+|:-----|:-----|
+| Accel `DEVID` | `0xE5` (ADXL345) |
+| Node terminal | `[NODE] ID=… TX-OK` |
+| Fake LoRa RX | `>>> OK node=.. seq=..` then `>>> delivered` |
+| Dashboard | `0xAA` header after `'S'` / `'D'` |
+| `'D'` dump | 16-byte records, CRC already checked |
+| Sleep (production) | `SIM_FAST_WAKE` off, &lt; 10 µA |
