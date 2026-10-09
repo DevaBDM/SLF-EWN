@@ -32,7 +32,7 @@ When notes disagree, **this table wins.** Archive drafts that still say LIS3DH, 
 | UI | Qt Widgets / web | **Qt 6 + QML** (practical, not a marketing mock) |
 | Tower power | Dual Li-SOCl₂ only | **USB 5 V** (+ optional battery) |
 | CAD | Blender as the enclosure | **SolidWorks** print · Blender film |
-| Firmware | Arduino core / one `.ino` | **AVR-GCC C**, one `.c` / `.h` per chip from the datasheet |
+| Firmware | Arduino core / one `.ino` / third-party device libs | **AVR-GCC C**, self-written drivers; only toolchain `.h` (avr/*, stdint, string) — [[Code Hub#Self-implemented firmware (supply-chain / trust policy)]] |
 
 Shop stocks **ADXL345**; code and fakes target `DEVID 0xE5`. LIS3DH (~2 µA) remains a future drop-in if available — only `transmitter_accelerometer.c` + fake would change.
 

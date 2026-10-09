@@ -64,7 +64,7 @@ Technical design presentation — full detail
 | **F** | Dual wake: WDT and accelerometer INT |
 | **G** | Soil path loss, antenna, PCB RF noise |
 | **H** | PCB size, 1-layer rules, HF placement |
-| **I** | Flash, collisions, pre-flash, encryption |
+| **I** | Flash, collisions, pre-flash, encryption, **firmware supply-chain trust** |
 | **J** | Risk register, validation order, conclusions |
 
 **Related project notes:** [[Project Overview]] · [[Firmware Hub]] · [[Code Hub]] · [[Dashboard Hub]] · [[Status and open issues]] · [[Full Proposal]]
@@ -939,6 +939,43 @@ flowchart LR
 
 ---
 
+## I5 — Firmware supply-chain trust (security)
+
+### Challenge: third-party headers and opaque libraries
+
+```mermaid
+flowchart TB
+  EXT[Third-party Arduino / vendor .h+.c packs] --> RISK[Unreviewed behaviour<br/>fork drift · compromised mirror · hidden side effects]
+  RISK --> FAIL[Wrong SPI timing · silent data change · unexpected TX]
+  OWN[In-tree drivers + protocol] --> REV[Team-readable register maps]
+  REV --> TRUST[Auditable node and tower path]
+  STD[AVR-GCC / avr-libc headers only] --> OWN
+```
+
+**Problem.** Embedded projects often pull LoRa, accelerometer, or flash “libraries.” Those headers and sources can be **edited or substituted** outside the team’s control. For a sealed buried node and a warning path, opaque middleware is a **security and integrity** risk, not only a style preference.
+
+**Solution (as built).**
+
+| Layer | Policy |
+|:------|:-------|
+| Application / drivers | **Self-implemented** in `Code/` from datasheets |
+| Protocol | `slf_protocol.*` owned by the project |
+| Allowed includes | Toolchain only: `avr/io.h`, `avr/interrupt.h`, `avr/sleep.h`, `avr/wdt.h`, `stdint.h`, `string.h`, `util/delay.h` |
+| Rejected | Arduino core, third-party LoRa/ADXL/W25Q packs, FAT stacks |
+
+| Module implemented in-tree | Role |
+|:---------------------------|:-----|
+| `transmitter_accelerometer.*` | ADXL345 SPI + low-power ACTIVITY |
+| `transmitter_lora.*` / `receiver_radio.*` | SX1278 register TX/RX |
+| `receiver_storage.*` | W25Q64 append / erase |
+| `slf_protocol.*` | 12-byte frame + CRC-8 |
+
+**Honest limit.** The compiler and avr-libc still must be genuine; this policy removes **application-level** third-party middleware, not formal binary attestation of the whole toolchain.
+
+**Status:** **Done** for the current node/tower firmware path — [[Code Hub#Self-implemented firmware (supply-chain / trust policy)]]. Complements planned **air-frame encryption (F7)**; encryption protects the RF observer, self-built drivers protect the **build integrity** of the device software.
+
+---
+
 ## J1 — Residual risk register
 
 | ID | Item | If deferred |
@@ -986,6 +1023,7 @@ Each gate should close with a **measurement** or a **firmware revision tag**, no
 3. **Energy architecture** is cell + 1 F buffer + P-MOS load switch + long WDT period + motion-capable sleep.
 4. **RF closure** further requires air-pocket helix, vertical polarisation, tower height, and PCB EMI discipline.
 5. **Remaining work is residual risk and validation**, not an undefined system concept.
+6. **Firmware supply-chain:** self-implemented drivers and protocol; toolchain headers only — reduces third-party header risk ([[Code Hub]]).
 
 ---
 

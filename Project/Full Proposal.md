@@ -148,6 +148,9 @@ USB 5 V primary; optional battery is backup. Shared SPI; radio CS **PB2**, flash
 
 ## 4. Firmware and protocol
 
+**Software trust policy.** Node and tower firmware use **self-written** device drivers and protocol code. The only non-project includes are AVR-GCC / avr-libc headers (`avr/io.h`, `stdint.h`, etc.). No Arduino core or third-party LoRa/accel libraries — [[Code Hub#Self-implemented firmware (supply-chain / trust policy)]].
+
+
 Written in **C** (AVR-GCC). **No Arduino.** Modular tree under `Code/` — [[Code Hub]]. Same master hex in Proteus and in the socket.
 
 ### 4.1 Air frame (12 bytes, big-endian)

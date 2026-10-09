@@ -340,6 +340,18 @@ The plan is to encrypt on the node and decrypt on the tower, using keys installe
 
 ---
 
+## I5
+
+From a **security** angle, another risk is the software itself: if the project depends on random Arduino or vendor library headers, those files could be changed (or come from an untrusted copy) and make the radio, sensors, or memory behave wrongly without the team noticing.
+
+**Challenge:** third-party device libraries are hard to audit and can be altered.
+
+**Solution:** write the drivers and the 12-byte protocol **inside the project**. Only normal compiler headers (`avr/io.h`, `stdint.h`, and similar) are imported. No Arduino core and no external LoRa or accelerometer packs.
+
+That does not replace encryption of the radio message (still planned). It means the **code path on the node and tower** is under team control — see [[Code Hub#Self-implemented firmware (supply-chain / trust policy)]].
+
+---
+
 ## J1
 
 Honest list of what still undermines claims if left undone: unmeasured sleep current, unmeasured soil loss, simulation flags left on, moisture polarity, motion-interrupt proof, transmit staggering, encryption, boards not fabricated, incomplete mechanical drawings.
