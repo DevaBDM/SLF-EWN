@@ -35,9 +35,16 @@ notesSeparator: "note:"
 
 ## SLF-EWN
 
-### Engineering challenges, quantitative analysis, and design responses
+### Phase 1 engineering challenges, quantitative analysis, and design responses
+
+*(Phase 2/3: short review only — full steps in [[Phase 2 and Phase 3 plan]])*
 
 **Subterranean Landslide and Flood Early-Warning Network**
+
+This deck is the **challenges and solutions** record for the prototype (Phase 1): why each hard constraint forced a specific technical response. It is meant for technical mentor review, not a marketing overview.
+
+Each major section follows **problem → analysis → implementation → status**.
+
 
 | Item | Content |
 |:-----|:--------|
@@ -54,6 +61,10 @@ Technical design presentation — full detail
 
 ## How this deck is organised
 
+**Primary focus:** Phase 1 challenges—the conflicts we faced and the quantitative or architectural solutions in the current node, tower, and host design.
+
+**Secondary:** residual Phase 1 validation risk, then a **short** Phase 2/3 look-ahead (not a full second project pitch).
+
 | Section | Topics |
 |:--------|:-------|
 | **A** | Architecture, constraints, method |
@@ -65,13 +76,17 @@ Technical design presentation — full detail
 | **G** | Soil path loss, antenna, PCB RF noise |
 | **H** | PCB size, 1-layer rules, HF placement |
 | **I** | Flash, collisions, pre-flash, encryption, **firmware supply-chain trust** |
-| **J** | Risk register, validation order, conclusions |
+| **J** | Risk register, Phase 1 validation, **brief Phase 2/3 review**, conclusions |
 
-**Related project notes:** [[Project Overview]] · [[Firmware Hub]] · [[Code Hub]] · [[Dashboard Hub]] · [[Status and open issues]] · [[Full Proposal]]
+**Related project notes:** [[Project Overview]] · [[Firmware Hub]] · [[Code Hub]] · [[Dashboard Hub]] · [[Status and open issues]] · [[Phase 2 and Phase 3 plan]] · [[Data path future architecture]] · [[Full Proposal]]
 
 ---
 
 ## A1 — System architecture
+
+### What this system is solving
+
+SLF-EWN is a **buried early-warning chain**: nodes at about 1 m sense moisture and motion, send a short LoRa packet, the tower logs it, and the host turns IDs into map places and alarms. Every later challenge (energy, RF, frame size) is constrained by this split of responsibilities.
 
 ```mermaid
 flowchart TB
@@ -103,6 +118,10 @@ flowchart TB
 
 ## A2 — Segment parameters
 
+### Four segments, four power and clock stories
+
+The node must last years on a primary cell; the tower may stay powered and listen continuously; the air segment is lossy and shared; the host holds geography and policy. Confusing those roles is how projects grow bloated frames or always-on radios.
+
 | Segment | Clock / power | Primary responsibility |
 |:--------|:--------------|:-------------------------|
 | Node | 8 MHz RC, Li-SOCl₂ 3.6 V | Sense, pack, TX, µA-class sleep |
@@ -120,6 +139,10 @@ flowchart TB
 
 ## A3 — Global design constraints
 
+### Hard bounds that drove part choices
+
+These are not soft preferences. Burial depth, 1-layer THT, and multi-year life force primary chemistry, short airtime, and socketed pre-flash. Shop stock forced ADXL345 instead of the lower-µA LIS3DH option.
+
 | Constraint | Quantitative / hard bound | Design consequence |
 |:-----------|:--------------------------|:-------------------|
 | Service life | 3–7 years without opening capsule | Primary cell; average current in low µA |
@@ -136,6 +159,10 @@ flowchart TB
 
 ## A4 — Method used on every challenge
 
+### How this deck stays technical
+
+Each challenge is treated the same way so a mentor can audit the reasoning: conflict of requirements, quantitative bound, what is implemented, what is still open. That pattern repeats from frame size through RF and energy.
+
 | Step | Question answered on the slide |
 |:-----|:-------------------------------|
 | **1. Problem** | Which requirements conflict? |
@@ -148,6 +175,10 @@ This keeps the review auditable: numbers first, then the part choice, then resid
 ---
 
 ## B1 — Frame size: problem
+
+### Why payload size is an engineering challenge
+
+Every extra field on the air costs energy, extends collision windows, and weakens the post-soil link margin. Geotechnical wishlists (voltage, temperature, GNSS, free text) conflict with a sealed µA-class node.
 
 ### Observability versus energy, collisions, and soil margin
 
@@ -168,6 +199,10 @@ flowchart LR
 ---
 
 ## B2 — Frame size: bit-level layout
+
+### Frozen 12-byte PDU
+
+The solution is a fixed layout: identity, moisture, three-axis tilt, status, CRC. Nothing variable-length on the air. Host software owns labels and history.
 
 ```
 Offset   0         2         4         6         8        10    11
@@ -193,6 +228,10 @@ Canonical tables: [[Firmware Hub#Data formats]]
 
 ## B3 — Frame size: host and storage wrappers
 
+### Where the extra bytes live
+
+Flash and USB add structure around the PDU without enlarging the RF packet. The tower stores 16-byte records; the host uses `0xAA` framed replies so dumps are not a raw 12-byte stream.
+
 | Layer | Size | Contents |
 |:------|:-----|:---------|
 | Air PDU | **12 B** | ID, moisture, XYZ, status, CRC |
@@ -210,6 +249,10 @@ Canonical tables: [[Firmware Hub#Data formats]]
 ---
 
 ## C1 — Why not 2.4 GHz for a buried node
+
+### Frequency is a soil-penetration challenge
+
+Compact IoT culture defaults to 2.4 GHz. For a metre of wet clay, that default is the wrong starting point: attenuation rises with frequency, and association-heavy stacks waste energy.
 
 ### Carrier frequency and soil attenuation
 
@@ -243,6 +286,10 @@ Open-air LoRa marketing figures (many km) **do not** apply to the buried metre.
 
 ## C2 — Why LoRa modulation (CSS), not any 433 MHz FSK
 
+### Sub-GHz alone is not enough
+
+433 MHz helps the path; **LoRa CSS** helps the demodulator recover weak signals at low rate. Simple FSK at the same frequency would not buy the same sensitivity class for a 12-byte telemetry burst.
+
 ### Sensitivity at low information rate
 
 ```mermaid
@@ -269,6 +316,10 @@ flowchart TB
 
 ## C3 — RF configuration checklist
 
+### Matched parameters on both ends
+
+TX and RX must agree on frequency, spreading, bandwidth, sync, and payload length. Mismatched SF/BW is a silent system failure. ToA and TX power still sit inside the energy budget from section E.
+
 | Parameter | Design target |
 |:----------|:--------------|
 | Frequency | **433.0 MHz** ISM |
@@ -290,6 +341,10 @@ $$
 ---
 
 ## D1 — Zones and identity: problem
+
+### Identity on the wire, geography on the host
+
+The air frame can carry a Device ID; it cannot carry polygons, place names, or per-site threshold tables without breaking the energy and ToA story.
 
 ### RF packets cannot carry a full GIS model
 
@@ -317,6 +372,10 @@ flowchart TB
 ---
 
 ## D2 — Tracking after a landslide
+
+### Physical location may move; ID must not
+
+After a slide, the capsule may translate or rotate. The network still needs a stable identity for logging and alerts. Map pins and zone membership are host-side and may need operator update; the node does not run GNSS.
 
 ### Geometry can change; identity must not
 
@@ -348,6 +407,10 @@ flowchart LR
 
 ## D3 — Why moisture and tilt at about 1 m depth
 
+### What the node is allowed to observe
+
+Surface-only instruments can miss saturation and motion developing underground. Depth ≈ 1 m is both a useful sensing horizon and the same path the radio must cross. This is early-warning instrumentation, not a full slope FEM.
+
 ### Surface instruments often see failure late
 
 ```mermaid
@@ -375,6 +438,10 @@ This build is an **instrumented early-warning prototype**, not a replacement for
 
 ## D3b — Moisture probe: why not resistive?
 
+### Corrosion is a lifetime challenge
+
+Resistive forks inject current through pore water. In permanent wet soil that becomes electrolysis and electrode damage—unacceptable for a sealed multi-year burial.
+
 ### Resistive probes fail in permanent wet soil
 
 ```mermaid
@@ -399,6 +466,10 @@ flowchart LR
 ---
 
 ## D3c — Capacitive moisture: design response
+
+### Dielectric sensing plus gated power
+
+Capacitive probes sense wetness through insulation; FET gating removes continuous bias. The host still treats the value as a **proxy** for thresholds, not a metrology certificate.
 
 ### Insulated electrodes · dielectric sensing · gated power
 
@@ -427,7 +498,12 @@ flowchart TB
 
 ## D4 — Threshold hierarchy
 
+### Policy without enlarging the RF frame
+
+Alarm bands are a **host policy** challenge: the node only reports numbers and an emergency bit. Different sites need different warn/critical levels without changing the 12-byte air layout.
+
 ### One global limit is wrong for every site
+
 
 ```mermaid
 flowchart TB
@@ -454,6 +530,10 @@ flowchart TB
 
 ## E1 — Energy: problem statement
 
+### Peak current versus average current
+
+The LoRa PA needs order ~100 mA for milliseconds to tens of milliseconds. The cell that lasts years cannot supply that continuously. Sleep, gating, and buffering are mandatory—not optional optimisations.
+
 ### Peak PA current versus multi-year average current
 
 ```mermaid
@@ -472,6 +552,10 @@ flowchart TB
 ---
 
 ## E2 — Energy: cell capacity and average-current bound
+
+### Order-of-magnitude life math
+
+Stored charge sets a hard ceiling on average current. Design targets sit well below that ceiling so temperature, leakage, and self-discharge still leave margin.
 
 **Stored energy (order of magnitude)**
 
@@ -498,6 +582,10 @@ $$
 ---
 
 ## E3 — Energy: duty cycle — why sleep dominates
+
+### Active charge is small; hibernate decides success
+
+With a ~50 ms active window every 15 minutes, the duty cycle is ~10⁻⁵. Microamps while “asleep” dominate the yearly integral—hence ADXL policy and FET gating.
 
 Take active window $\Delta t_{\mathrm{on}} \approx 50\,\mathrm{ms}$ and production period $T = 15\,\mathrm{min} = 900\,\mathrm{s}$:
 
@@ -531,6 +619,10 @@ stateDiagram-v2
 
 ## E4 — P-MOSFET load switch (moisture + LoRa)
 
+### Kill quiescent draw of hungry modules
+
+Moisture and Ra-02 must not sit in standby for 15 minutes. A high-side P-MOS (ZVP2106A) switches **VCC_SW** only for measure/TX. ADXL stays on the always-on rail for motion INT.
+
 ### High-side power gating
 
 ```mermaid
@@ -559,6 +651,10 @@ flowchart LR
 
 ## E5 — Supercap for the TX current edge
 
+### Buffer the PA pulse the cell cannot source cleanly
+
+Charge ΔQ = I·T_air; a small electrolytic cannot hold the rail across LoRa airtime. A **1 F / 5.5 V** supercap on the **transmitter only** supplies the edge; ESR still matters on the bench.
+
 Cell average current is microamps; PA wants ~**120 mA** for milliseconds.
 
 **Charge for 120 mA × 2 ms**
@@ -586,6 +682,10 @@ $$
 
 ## F1 — Dual wake: problem
 
+### Timer-only wake is too slow for sudden failure
+
+A pure 15-minute poll can miss rapid acceleration between samples. Continuous high-rate accel would destroy the energy budget. The conflict forces a dual-wake architecture.
+
 ### Pure timer sampling misses rapid onset
 
 If the node only wakes every 15 minutes and **all** motion sensing is powered down, a fast failure between samples is invisible until the next WDT wake.
@@ -606,6 +706,10 @@ flowchart TB
 ---
 
 ## F2 — Dual wake: implementation behaviour
+
+### WDT for routine reports; INT0 for emergencies
+
+MCU power-down + 8 s WDT ticks build the 15 min (+ stagger) period. ADXL ACTIVITY → INT1 → MCU INT0 sets emergency status. After TX, accel returns to low-power activity mode.
 
 ```mermaid
 sequenceDiagram
@@ -639,6 +743,10 @@ sequenceDiagram
 
 ## G1 — Soil path loss: analysis
 
+### The buried metre is the hard RF segment
+
+Path loss through wet soil can be tens of dB per metre at sub-GHz. Design uses literature-scale α until H4 measurements; frequency choice and short packets are the first mitigations.
+
 $$
 L_{\mathrm{soil}} \approx \alpha \cdot d
 \quad\text{with}\quad
@@ -669,6 +777,10 @@ flowchart LR
 
 ## G2 — Antenna: electrical length and clay
 
+### Wavelength and dielectric loading
+
+A quarter-wave at 433 MHz is ~17 cm in air. Wet clay raises effective ε_r and shortens electrical length unpredictably—worst when the slope is wettest.
+
 **Free-space quarter-wave** at 433 MHz, $VF \approx 0.95$:
 
 $$
@@ -695,6 +807,10 @@ $$
 
 ## G3 — Antenna: geometry
 
+### Helix in an air pocket
+
+A compact helix on a controlled mandrel fits the capsule better than a straight whip through mud. The critical rule is **air around the radiator**, not soil packing against the element.
+
 | Parameter | Specification |
 |:----------|:--------------|
 | Type | Helix |
@@ -718,6 +834,10 @@ flowchart TB
 
 ## G4 — Antenna: orientation and mechanical order
 
+### Polarisation and stack order
+
+Tower whip vertical; node helix oriented for consistent polarisation as far as the tube allows. Mechanical stack keeps SMA/air pocket above the RF module and moisture exit at the bottom.
+
 Polarisation mismatch discards link margin already spent on soil loss.
 
 ```mermaid
@@ -739,6 +859,10 @@ flowchart LR
 ---
 
 ## G5 — PCB as an EMI source into the antenna
+
+### The board is part of the antenna problem
+
+SPI edges, PA current, and long ANT traces couple noise into the radiator. Layout rules (short ANT, local decoupling, moisture ADC away from RF, ground pour) are link-budget items, not cosmetics.
 
 ### Self-interference on a 50×50 mm one-layer board
 
@@ -768,6 +892,10 @@ flowchart TB
 
 ## H1 — Transmitter PCB size and capsule
 
+### Form factor is a constraint, not a preference
+
+50×50 mm 1-layer THT must slide into a small-ID tube with battery, supercap, and helix air pocket. Every connector and ICSP header competes with that volume.
+
 | Parameter | Value |
 |:----------|:------|
 | TX PCB | **50 × 50 mm**, 1-layer THT |
@@ -794,6 +922,10 @@ Rectangular boxes concentrate stress at corners under freeze–thaw; the cylinde
 ---
 
 ## H2 — Single-layer PCB technology
+
+### Shop and cost forced 1-layer THT
+
+No inner planes, no fine-pitch escape. Crossings use jumpers; modules sit on female headers; MCU is socketed for pre-flash. Two-layer SMD remains a future process change, not this BOM.
 
 ```mermaid
 flowchart TB
@@ -822,6 +954,10 @@ Driven by cost, student fab process, and field repair—not only RF theory.
 
 ## H3 — Placement for high-frequency and analogue integrity
 
+### Partition digital RF from slow analogue
+
+Keep SPI/radio cluster tight; keep moisture ADC routing quiet; keep power path thick for PA peaks. Placement is the practical EMI control available on one copper layer.
+
 | Cluster | Include | Goal |
 |:--------|:--------|:-----|
 | **Hot** | MCU SPI, radio SPI, local ceramics, PA bulk | Minimise loop area and supply bounce |
@@ -843,6 +979,10 @@ flowchart LR
 ---
 
 ## I1 — Flash storage without MicroSD
+
+### Tower autonomy without a filesystem
+
+SD/FAT stacks are heavy and failure-prone for a simple append log. W25Q64 raw NOR with 16-byte records matches the fixed PDU and survives PC disconnect.
 
 **Problem.** Tower must log while the PC is absent. FAT on MicroSD is expensive on ATmega328P (RAM, flash, power, failure modes).
 
@@ -872,9 +1012,13 @@ At 96 records/node/day, multi-year capacity exists for a small fleet if erase is
 
 ## I2 — Multi-node channel contention
 
+### One demodulator, many buried transmitters
+
+Synchronised WDT wakes collide. Stagger $T_i = 15\,\mathrm{min} + (id \bmod 30)\,s$ is implemented; CRC still drops residual overlaps as lost samples, not silent corruption.
+
 One SX1278 demodulates **one** packet at a time. Synchronised WDT wakes produce systematic collisions.
 
-**Specified temporal stagger (not in code yet):**
+**Temporal stagger (implemented in `transmitter.c`):**
 
 $$
 T_i = 15\,\mathrm{min} + (id \bmod 30)\ \mathrm{s}
@@ -890,12 +1034,16 @@ sequenceDiagram
   T-->>T: CRC fail · drop
 ```
 
-**Today:** CRC-8 prevents silent corruption; collisions become **lost samples**.
-**Open (F2):** implement $(id \bmod 30)$ in `transmitter.c`.
+**Today:** stagger spreads wakes by up to 29 s; CRC-8 still drops residual overlaps as **lost samples**.
+**Status (F2):** **Done** — `(DEVICE_ID % 30)` folded into WDT tick count. Production builds must clear `SIM_FAST_WAKE` (F1) or the interval is forced to ~8 s.
 
 ---
 
 ## I3 — Pre-flash manufacturing
+
+### No 5 V ISP on a 3.6 V buried board
+
+DIP-28 socket + lab programming avoids ICSP area and voltage abuse. Field boards receive a pre-flashed MCU; fuse recipes must be written down (tower crystal vs node RC).
 
 **Problem.** In-circuit 5 V ISP on a 3.6 V buried board is a reliability and safety issue; ICSP also consumes scarce 50×50 mm area.
 
@@ -915,6 +1063,10 @@ flowchart LR
 ---
 
 ## I4 — Confidentiality of the air interface
+
+### Cleartext ISM is observable
+
+IDs, moisture, tilt, and emergency flags can be received by third parties. Planned path: lightweight encryption with pre-shared keys at pre-flash; re-budget ToA if the frame grows (**F7** open).
 
 **Problem.** Unencrypted PDUs on ISM spectrum are observable with suitable receivers (IDs, moisture, tilt, emergency flags).
 
@@ -940,6 +1092,10 @@ flowchart LR
 ---
 
 ## I5 — Firmware supply-chain trust (security)
+
+### Third-party libraries are an integrity risk
+
+Opaque Arduino or vendor packs can change behaviour without review. Solution already in force: self-implemented drivers and protocol; only AVR-GCC/avr-libc headers.
 
 ### Challenge: third-party headers and opaque libraries
 
@@ -978,65 +1134,103 @@ flowchart TB
 
 ## J1 — Residual risk register
 
-| ID | Item | If deferred |
-|:---|:-----|:------------|
-| **H3** | Sleep current unmeasured | Life claim unsupported |
-| **H4** | Soil path unmeasured | Range claim unsupported |
-| **F1** | `SIM_FAST_WAKE` left enabled | Wrong field duty cycle |
-| **F3** | Moisture ADC polarity | Inverted wet/dry signal |
-| **F8** | Accel INT thresholds / current | Missed events or excess µA |
-| **F2** | TX time jitter absent | Systematic collisions |
-| **F7** | No air encryption | Cleartext observable |
-| **H1** | PCB not fabricated | Blocks all hardware validation |
-| **H2** | Tower fuse recipe informal | Brick risk on first tower chip |
-| **M1** | Capsule CAD incomplete | Mechanical integration risk |
+### What still undermines a Phase 1 claim if left open
 
-Authoritative checklist: [[Status and open issues]]
+| ID | Item | If deferred | Ties to |
+|:---|:-----|:------------|:--------|
+| **H3** | Sleep current unmeasured | Multi-year life is only a calculation | Energy slides **E** |
+| **H4** | Soil path unmeasured | 1 m / 100–200 m range is only literature-scale | RF slides **G** |
+| **F1** | `SIM_FAST_WAKE` left enabled | Field duty cycle is ~8 s, not 15 min + stagger | Dual wake **F**, collisions **I2** |
+| **F3** | Moisture ADC polarity | Wet/dry inverted on host thresholds | Capacitive **D3c** |
+| **F8** | Accel INT thresholds / current | Missed emergency wakes or excess µA | Dual wake **F** |
+| **F2** | TX time jitter | **Done** (`id % 30` in `transmitter.c`); residual overlaps still CRC-drop | **I2** |
+| **F7** | No air encryption | Cleartext IDs and samples on ISM | **I4** (planned) |
+| **H1** | PCB not fabricated | All RF/power claims stay simulation-heavy | **H** layout |
+| **H2** | Tower fuse recipe informal | Brick risk on first 16 MHz tower chip | Tower clock |
+| **M1** | Capsule CAD incomplete | Helix air pocket / burial stack incomplete | Antenna **G** |
+
+Authoritative live list: [[Status and open issues]]. This slide is the **honest risk view** after the design solutions above.
 
 ---
 
-## J2 — Recommended validation sequence
+## J2 — Phase 1 validation sequence
+
+### Close the prototype with measurements, not only slides
 
 ```mermaid
 flowchart TB
-  A[Production sleep current · clear SIM_FAST_WAKE]
-  B[Moisture invert / two-point calibration]
-  C[ADXL345 INT threshold and current on HW]
-  D[Implement id-modulo TX jitter]
-  E[Crypto design freeze + implementation]
-  F[PCB fab · RF feed and noise checks]
-  G[Soil-barrel / pit path-loss test]
+  A[Clear SIM_FAST_WAKE · measure sleep µA]
+  B[Moisture invert / two-point wet-dry]
+  C[ADXL345 INT threshold + current on HW]
+  D[TX stagger · Done F2]
+  E[Optional: crypto freeze F7]
+  F[PCB fab · ANT feed · EMI check]
+  G[Soil-barrel / pit path-loss]
+  H[E2E: node → flash → USB → Qt]
   A --> C
-  B --> E
-  D --> E
+  B --> H
+  C --> H
   F --> G
+  G --> H
 ```
 
-Each gate should close with a **measurement** or a **firmware revision tag**, not only updated prose.
+| Gate | Practical check | Why it still blocks Phase 1 claims |
+|:-----|:----------------|:-----------------------------------|
+| **F1** | Production hex without `SIM_FAST_WAKE` | Stagger and 15 min interval must be real |
+| **H3** | µA meter, FET off, ADXL low-power | Life math needs a measured average class |
+| **H4** | Barrel/pit at design depth | Soil loss coefficient not only a table value |
+| **H6 / H1** | Nets review + fab POST | ADXL always-on; supercap TX-only; real boards |
+| **F3 / F8 / H2** | Wet reading direction; INT wakes MCU; tower fuses | Correct sense path and tower clock |
+| **E2E** | `'N'`/`'D'` into Qt, emergency `0x80` | Full chain without Proteus |
+
+**Phase 1 “good enough” demo:** one node · one USB tower · SAFE/WARNING/CRITICAL · motion emergency path.
 
 ---
 
-## J3 — Conclusions
+## J3 — Looking ahead (Phase 2 / 3 review only)
+
+### Short review — not the body of this challenges deck
+
+**Phase 1 (this deck):** buried node, USB tower, Qt, and the engineering solutions for energy, RF, protocol, dual wake, flash, and firmware trust.
+
+| Phase | What it adds (summary) | Still assumes Phase 1 core |
+|:------|:------------------------|:---------------------------|
+| **2** | Solar + battery on tower · local **siren** on `0x80` · tower battery/uptime telemetry · **secondary** LoRa backhaul · **handheld** LCD mule · host **tower/node registry** | Same 12-byte node PDU, primary node RX, USB for service |
+| **3** | Richer slope instruments (extensometer/TDR/IPI) · mesh · stronger analytics · production wear-leveling | Phase 2 field access working |
+
+**Suggested Phase 2 start order (detail elsewhere):** siren + telemetry + registry → solar → secondary LoRa + handheld → encryption may trail.
+
+Full step lists: [[Phase 2 and Phase 3 plan]] · design freeze: [[Data path future architecture]].
+
+**Mentor line:** Phase 2/3 extend *operations and access*; they do not rewrite the Phase 1 analysis in sections A–I.
+
+---
+
+## J4 — Conclusions
 
 1. **433 MHz LoRa (SX1278 / Ra-02)** is justified by soil attenuation and sensitivity at low rate—not by generic IoT fashion.
-2. **Fixed 12-byte PDUs** bound energy, time-on-air, and software complexity; zones and thresholds belong on the host.
-3. **Energy architecture** is cell + 1 F buffer + P-MOS load switch + long WDT period + motion-capable sleep.
-4. **RF closure** further requires air-pocket helix, vertical polarisation, tower height, and PCB EMI discipline.
-5. **Remaining work is residual risk and validation**, not an undefined system concept.
-6. **Firmware supply-chain:** self-implemented drivers and protocol; toolchain headers only — reduces third-party header risk ([[Code Hub]]).
+2. **Fixed 12-byte PDUs** bound energy, time-on-air, and collision window; zones, maps, and rich history stay on the host.
+3. **Energy architecture** is Li-SOCl₂ + **1 F** buffer + P-MOS load switch (moisture + LoRa only) + long WDT + ADXL activity in sleep.
+4. **RF closure** needs air-pocket helix, polarisation, tower height, and PCB EMI discipline—not only a module datasheet.
+5. **Phase 1 residual risk** is **validation and fab** (sleep µA, soil loss, boards)—not an undefined architecture.
+6. **Firmware supply-chain:** self-implemented drivers and protocol; toolchain headers only ([[Code Hub]]).
+7. **Phase 2/3** appear here only as a **short forward look**; this challenges file stays centered on Phase 1 problems and solutions.
 
 ---
 
-## J4 — Internal references
+## J5 — Internal references
 
 | Topic | Note |
 |:------|:-----|
 | Decisions, BOM, radio narrative | [[Project Overview]] |
 | Frame, pins, WDT, pre-flash | [[Firmware Hub]] |
-| Source tree and drivers | [[Code Hub]] |
-| Host thresholds and Places | [[Dashboard Hub]] |
-| Open issue IDs | [[Status and open issues]] |
+| Source tree, drivers, trust policy | [[Code Hub]] |
+| Host thresholds, Places, registry model | [[Dashboard Hub]] |
+| Open issue IDs (live) | [[Status and open issues]] |
+| Phase 2 / 3 step list (outside this deck) | [[Phase 2 and Phase 3 plan]] |
+| Multi-path / siren / solar / handheld design | [[Data path future architecture]] |
 | Formal proposal text | [[Full Proposal]] |
+| Mentor FAQ / IEC feasibility | [[Mentor readiness]] |
 
 **External inputs used in analysis:** SX1278 / ADXL345 / W25Q64 datasheets; published sub-GHz soil attenuation orders of magnitude; Li-SOCl₂ manufacturer data (self-discharge, temperature).
 
@@ -1044,6 +1238,6 @@ Each gate should close with a **measurement** or a **firmware revision tag**, no
 
 ## End
 
-### SLF-EWN — Challenges, analysis, and design responses
+### SLF-EWN — Phase 1 challenges, analysis, and design responses
 
 **Questions and discussion**

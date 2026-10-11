@@ -69,7 +69,7 @@ AVR-GCC C. **No Arduino core.** One `.c` / `.h` per device, coordinators only se
 | Flash wear policy | Append; **sector erase** on entry; **chip erase** when full | `receiver_storage_append()` |
 | Delays | Timer0 CTC in device modules; tower UART poll may use `_delay_us` | Node / radio / accel / storage |
 | Sensor power | ZVP2106A **PD4**: **VCC_SW = moisture + Ra-02 only** (not ADXL) | `transmitter.c` |
-| Sleep | Power-down + WDT 8 s; target **15 min**; `SIM_FAST_WAKE 1` for Proteus | `transmitter.c` |
+| Sleep | Power-down + WDT 8 s; base **15 min** + **`(id % 30) s`** stagger; `SIM_FAST_WAKE 1` for Proteus only | `transmitter.c` |
 | Air frame | Fixed **12 bytes** + CRC-8 (poly-style `0x07`) | `Common/slf_protocol.*` |
 | Flash record | **16 bytes** = 4-byte record id + 12-byte frame | Storage + Qt |
 | Dashboard link | UART **115200**, poll commands `'S'`/`'D'`/`'N'`/`'C'`, replies start with **`0xAA`** | `receiver.c` |

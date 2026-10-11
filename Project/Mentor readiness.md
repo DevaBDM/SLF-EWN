@@ -214,6 +214,9 @@ A. Power, cost, and burial; ID + host map is the prototype split.
 **Q. Do you use Arduino or third-party sensor libraries?**  
 A. **No.** Drivers (ADXL345, SX1278, W25Q64, protocol) are **self-implemented** in `Code/`. Only AVR-GCC / avr-libc standard headers are imported — see [[Code Hub#Self-implemented firmware (supply-chain / trust policy)]].
 
+**Q. What is Phase 2 vs Phase 3?**  
+A. Phase 2 = field tower (solar, siren, telemetry, secondary LoRa, handheld, host registry). Phase 3 = advanced sensors/mesh/ML. Steps: [[Phase 2 and Phase 3 plan]].
+
 **Q. What if the mentor only wants one sentence?**  
 A. *Feasible prototype under IEC equipment practice and common sub-GHz IoT methods; performance claims pending measurement; not a certified sole life-safety system.*
 

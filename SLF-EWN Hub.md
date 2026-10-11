@@ -58,6 +58,7 @@ artifacts/
 | IEC feasibility (mentor) | [[Project Overview#IEC standards and feasibility]] · [[Full Proposal#7.3 IEC standards and feasibility]] |
 | Mentor readiness pack (FAQ) | [[Mentor readiness]] |
 | Phase-2 data paths (LoRa backhaul, handheld) | [[Data path future architecture]] |
+| Phase 2 / 3 fine-grained plan | [[Phase 2 and Phase 3 plan]] |
 | Capsule mm + film shots | [[Mechanical Hub]] |
 | Open work / phase | [[Status and open issues]] |
 

@@ -42,8 +42,17 @@ static void node_wait_ms(uint16_t ms) {
 
 #define PRODUCTION_INTERVAL_S (15UL * 60UL)
 #define WDT_TICK_S 8UL
-#define WAKE_INTERVAL_WDT_TICKS (PRODUCTION_INTERVAL_S / WDT_TICK_S)
+/*
+ * Multi-node anti-collision: stagger wake by (Device ID mod 30) seconds so
+ * nodes do not systematically share the same WDT boundary.
+ *   T_i = 15 min + (id mod 30) s
+ * WDT period is 8 s, so stagger is quantised to whole ticks (floor).
+ */
+#define TX_STAGGER_S ((uint32_t)(DEVICE_ID) % 30UL)
+#define WAKE_INTERVAL_WDT_TICKS                                                           \
+    ((PRODUCTION_INTERVAL_S + TX_STAGGER_S) / WDT_TICK_S)
 
+/* Proteus only: force ~8 s wakes. Must be undefined / removed for field builds (F1). */
 #define SIM_FAST_WAKE 1
 #ifdef SIM_FAST_WAKE
 #undef WAKE_INTERVAL_WDT_TICKS
@@ -259,6 +268,13 @@ int main(void) {
     sei();
 
     uart_puts("=== MASTER NODE BOOT ===\r\n");
+    uart_puts("ID=");
+    uart_put_u16(DEVICE_ID);
+    uart_puts(" STAGGER_S=");
+    uart_put_u16((uint16_t)TX_STAGGER_S);
+    uart_puts(" WDT_TICKS=");
+    uart_put_u16((uint16_t)WAKE_INTERVAL_WDT_TICKS);
+    uart_puts("\r\n");
 
     for (;;) {
         wdt_tick_count = 0;

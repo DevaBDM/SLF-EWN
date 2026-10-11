@@ -17,6 +17,8 @@ status: planned
 
 **Status:** **Planned.** Current prototype keeps **tower USB ↔ Qt** only. This page freezes the agreed multi-path design so later work does not invent a second story.
 
+**Step-by-step implementation order:** [[Phase 2 and Phase 3 plan]].
+
 ---
 
 ## Goals

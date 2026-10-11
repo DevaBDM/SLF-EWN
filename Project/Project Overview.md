@@ -285,4 +285,4 @@ Pads on the TX board for an **external digital extensometer** — not stuffed in
 - **Host LoRa** for direct tower link when in range; otherwise handheld → USB → Qt.  
 - Mesh hops in valleys; ML false-alarm filtering; extensometer/TDR/IPI as above.
 
-Tracked gaps and phase status: [[Status and open issues]].
+Tracked gaps: [[Status and open issues]]. **Roadmap:** [[Phase 2 and Phase 3 plan]].

@@ -17,6 +17,16 @@ This note does **not** copy the slide. It explains, in everyday language, **why*
 
 ---
 
+### How to use this script
+
+This file supports [[Challenges and Solutions]]. The deck is **Phase 1 challenges and solutions**; Phase 2/3 are only a short review at the end.
+
+**Each technical slide** now opens with a short *why this is a challenge / what the solution direction is* paragraph on the slide itself. Use those opening lines when explaining, then the tables and equations—do not only read the diagram.
+
+Sections below stay **plain language** for non-technical listeners; they do not repeat every equation.
+
+---
+
 ## Opening slides
 
 **How to open this deck** — Instructions only for Obsidian’s Slides Extended plugin. Not part of the engineering story.
@@ -320,7 +330,7 @@ Instead: industrial-style SPI flash chip, fixed-size records (counter + the twel
 
 Several buried nodes share one radio channel. If they all transmit at the same instant, the tower hears noise and drops the checksum.
 
-The intended fix is a small time offset based on each node’s ID so they don’t always align. That offset is specified but not finished in code yet — so today, collisions simply become missing samples, not silent wrong data.
+The intended fix is a small time offset based on each node’s ID so they don’t always align. Each node adds up to 29 seconds based on its ID (`15 min + id mod 30`) so wakes do not all line up. Residual overlaps still fail CRC and are dropped. Production must turn off the fast simulation wake flag.
 
 ---
 
@@ -354,34 +364,40 @@ That does not replace encryption of the radio message (still planned). It means 
 
 ## J1
 
-Honest list of what still undermines claims if left undone: unmeasured sleep current, unmeasured soil loss, simulation flags left on, moisture polarity, motion-interrupt proof, transmit staggering, encryption, boards not fabricated, incomplete mechanical drawings.
+After all the design solutions, this is the **honest list** of what still weakens a Phase 1 claim: sleep current not measured, soil radio path not measured, simulation fast-wake still on, moisture polarity, motion-interrupt tuning, missing boards, tower fuse recipe, capsule drawings, and air encryption still open.
 
-Each ID points back to the live status note so the team does not maintain two conflicting lists.
+TX stagger is **already in code**. Each ID should match [[Status and open issues]] so slides and the live list do not diverge.
 
 ---
 
 ## J2
 
-Suggested order of attack so effort is not wasted: prove sleep current and moisture readings first; prove motion wake on real hardware; finish multi-node timing; then crypto; then fabricate and measure radio and soil.
+How to **finish Phase 1** in practice: turn off fast simulation wake; measure microamps in sleep; calibrate moisture; prove the accelerometer interrupt on hardware; fabricate boards; check antenna feed and noise; run a soil or pit radio test; then show a full path from node to tower flash to USB to the desktop app, including an emergency flag.
 
-Every step should end with a measured number or a firmware version tag, not only updated slides.
+“Good enough” for Phase 1 is one node, one USB tower, clear SAFE/WARNING/CRITICAL behaviour—not Phase 2 solar or handhelds.
 
 ---
 
 ## J3
 
-Five takeaways the whole deck supports:
+**Only a short look forward.** Phase 2 later adds solar and battery on the tower, a local siren, tower health on the host, a second LoRa for backhaul, a simple handheld, and registering towers and nodes on the PC. Phase 3 is richer sensors, mesh, and harder production features.
 
-The radio band and LoRa style are forced by soil and weak-signal needs. Short messages protect battery and simplicity. Energy is solved by chemistry, a buffer capacitor, switching loads off, long sleep, and a motion wake path. Antennas and board layout are part of the radio success. What remains is proving and finishing — not inventing a new concept from zero.
+This challenges presentation stays about **Phase 1** problems and solutions. Detailed Phase 2 steps are in [[Phase 2 and Phase 3 plan]].
 
 ---
 
 ## J4
 
-Where to read more inside the project vault (overview, firmware, code, dashboard, open issues, full proposal), and which external document classes fed the numbers (chip datasheets, published soil-loss orders of magnitude, battery manufacturer data).
+Closing arguments: sub-GHz LoRa for wet soil; short fixed messages; cell plus supercap plus switched loads plus motion wake; RF layout and air-pocket antenna; remaining work is measure and fab; self-written firmware for trust; Phase 2/3 mentioned only lightly.
+
+---
+
+## J5
+
+Pointers into the vault for anyone who wants depth after the talk: Overview, Firmware, Code, Dashboard, Status, Phase plan, Data path, Proposal, Mentor readiness.
 
 ---
 
 ## End
 
-Closing card only. No new technical claims.
+Questions. Default to a **Phase 1** measurement or open-issue ID unless the mentor asks about the future roadmap.
