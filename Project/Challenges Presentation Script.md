@@ -239,7 +239,7 @@ This is ordinary power-gating, chosen in a through-hole part that matches the te
 
 Even with average current under control, the radio’s short high-current pulse can sag a weak battery line.
 
-A large capacitor (a farad-class supercapacitor) sits next to the cell: the cell slowly fills it; the radio briefly drinks from it. Simple charge and voltage-dip arithmetic shows why a tiny capacitor would brown out and a 1 F class part barely dips.
+A **47 mF / 5.5 V** supercapacitor sits on the always-on rail, charged from the cell through a **1.2 kΩ** resistor. The radio briefly draws from the capacitor; the cell only sees a few milliamps of charge current. Math: about 127 mV dip for a 120 mA × 50 ms pulse, full recharge in roughly 5 minutes—well inside the 15-minute wake cycle. A tiny electrolytic would collapse the rail; a 2.7 V “memory backup” cap is the wrong voltage rating on a 3.6 V cell.
 
 Still required: **measure** real sleep current on the real board; turn off the “fast wake” flag used only in simulation.
 

@@ -24,7 +24,7 @@ Older drafts used MicroSD or two Li-SOCl₂ cells. **USB 5 V** is the build; opt
 
 | Part | Why absent |
 |:-----|:-----------|
-| **1 F supercap** | USB can source radio/MCU current; supercap is for **buried primary-cell TX peaks only** |
+| **47 mF + 1.2 kΩ (TX RC)** | USB can source radio/MCU current; RC buffer is for **buried primary-cell TX peaks only** |
 | **ZVP2106A / VCC_SW** | Tower stays powered for continuous RX; no multi-year µA sleep requirement |
 | **ADXL345 / moisture** | Sensing is on the node |
 | **Li-SOCl₂ as sole supply** | Prototype tower is USB-hosted |

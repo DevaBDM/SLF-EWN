@@ -15,7 +15,7 @@ status: active
 
 # Firmware
 
-**C · AVR-GCC · no Arduino.** Source of truth is `Code/` — see [[Code Hub]]. Same `.hex` on the Proteus master as in the DIP-28. The master does not branch on “this is a fake chip”; the fakes speak a **thin SPI contract** (`0x8D` FIFO, 8-bit accel regs). A later Ra-02 register driver can replace the FIFO write without changing the 12-byte payload.
+**C · AVR-GCC · no Arduino.** Source of truth is `Code/` — see [[Code Hub]]. Same `.hex` on the Proteus master as in the DIP-28. The master does not branch on “this is a fake chip”; Proteus fakes speak a **thin SPI contract** (`0x8D` FIFO, 8-bit accel regs). **Production** uses real SX1278 register drivers in `transmitter_lora.c` / `receiver_radio.c` — same **12-byte PDU**, different SPI behind the API.
 
 ← [[SLF-EWN Hub]] · [[Code Hub]] · Pins (sim): [[Transmitter Simulation]] · [[Receiver Simulation]] · Host: [[Dashboard Hub]]
 
@@ -35,7 +35,7 @@ stateDiagram-v2
     [*] --> HIBERNATE
     HIBERNATE --> ACTIVE: WDT ticks OR INT0
     ACTIVE --> MEASURE: FET on
-    MEASURE --> TRANSMIT: FET on again + 0x8D FIFO
+    MEASURE --> TRANSMIT: FET on · LoRa TX (prod: SX1278 regs · sim: 0x8D)
     TRANSMIT --> HIBERNATE: FET off
 ```
 
@@ -51,7 +51,7 @@ Three layouts. Do not parse USB as if it were the 12-byte air frame.
 
 ### 1. Air / ANT / LoRa payload — 12 bytes, big-endian
 
-Packed in `run_measurement_cycle()`. Same bytes on SPI after `0x8D`, on fake ANT UART, and inside flash records.
+Packed in `run_measurement_cycle()`. Same **12 bytes** on production LoRa FIFO, Proteus SPI after `0x8D`, fake ANT UART, and inside flash records.
 
 ```
 Offset  0        2        4        6        8        10   11
@@ -70,7 +70,9 @@ Offset  0        2        4        6        8        10   11
 
 Tower **drops** the frame if `crc8(rx,11) != rx[11]`. Fake LoRa TX also checks CRC before ANT.
 
-SPI to fake TX: **`0x8D`** then these 12 bytes, `_delay_us(250)` each (`transmitter.c`). Fake TX UART: 12 bytes only, `_delay_us(300)` (`fake_lora_transmitter.c`).
+**`0x8D` — Proteus simulation only.** SPI command used by the **fake** LoRa path so Proteus can accept 12 bytes and raise an interrupt. It is **not** part of the on-air LoRa protocol and **not** used on the production SX1278 register driver (`transmitter_lora.c`).
+
+SPI to fake TX: **`0x8D`** then these 12 bytes, `_delay_us(250)` each (sim build). Fake TX UART: 12 bytes only, `_delay_us(300)` (`fake_lora_transmitter.c`).
 
 ### 2. Flash record — 16 bytes
 
@@ -100,7 +102,7 @@ Unknown → error `0x01`. `'N'` missing 4 bytes (100 ms) → error `0x02`.
 
 | Off | Size | Field |
 |:---:|:----:|:------|
-| 0 | u8 | Magic **`0xAA`** |
+| 0 | u8 | Magic **`0xAA`** (frame sync — if first byte ≠ `0xAA`, discard/resync) |
 | 1 | u8 | Echoed cmd (`0x53` / `0x44` / `0x4E` / `0x43` / `0xFF`) |
 | 2–5 | u32 BE | Payload length |
 
@@ -120,6 +122,8 @@ Assert DTR/RTS on the dashboard port.
 ---
 
 ## Status byte
+
+Air frame **offset 10** — “what happened this cycle” flags (room to grow without changing the 12-byte PDU length).
 
 ```
 bit7     0x80  emergency (INT0 motion wake this cycle)
@@ -159,7 +163,7 @@ SPI master: **Mode 0**, `SPR0` → F_CPU/16. Shared MOSI/MISO/SCK.
 4. FET **off**.  
 5. Pack 12 bytes + CRC.  
 6. FET **on** again, 2 ms (radio is on `VCC_SW`).  
-7. LoRa: CS low, send **`0x8D`**, then 12 payload bytes with **`_delay_us(250)`** each, CS high. Wait up to **1 s** for INT1.  
+7. LoRa TX: **production** — SX1278 FIFO via `transmitter_lora_*` (registers). **Proteus** — CS low, **`0x8D`**, then 12 payload bytes, wait INT1. Same 12-byte PDU either way.  
 8. FET off. Debug UART line.  
 9. Sleep until WDT or INT0.
 
@@ -174,7 +178,7 @@ WAKE_INTERVAL_WDT_TICKS = 15*60 / 8   → 112 ticks ≈ 14.9 min
 
 **`#define SIM_FAST_WAKE 1` is currently on** — that **replaces** the interval with **1 tick ≈ 8 s**. For burial, **remove / `#undef SIM_FAST_WAKE`**.
 
-There is **no** `(device_id % 30)` jitter in this file. Anti-collision is still a planned behaviour, not implemented.
+**TX stagger implemented** in `transmitter.c`: \(T_i = 15\,\mathrm{min} + (\mathrm{DEVICE\_ID} \bmod 30)\,\mathrm{s}\), quantized to 8 s WDT ticks. Example `0x0104` → +20 s → 115 ticks. **`SIM_FAST_WAKE 1` overrides** to 1 tick for Proteus — must clear for field (F1).
 
 INT0 (motion) breaks the WDT wait immediately; the same cycle runs with `emergency = 1`.
 
@@ -256,6 +260,37 @@ Behaviour: [[Proteus Hub#Fake peripherals]]. Files: [[Code Hub]].
 
 ---
 
+
+---
+
+## RF settings (production)
+
+| Parameter | Design / code target |
+|:----------|:---------------------|
+| Frequency | **433.0 MHz** ISM |
+| Module | Ra-02 (SX1278) |
+| Spreading factor | **SF7 baseline** in drivers; SF8–9 allowed if field tests need more margin |
+| Bandwidth / coding | **125 kHz**, CR **4/5** class (TX and RX **must match**) |
+| PA | **PA_BOOST** band ≈ **+14…+20 dBm** — drives ~120 mA peaks → TX RC buffer |
+| ToA (12 B, SF7 class) | **~40–50 ms** on-air (use this for energy, not a 2 ms edge only) |
+| Payload | Fixed **12-byte** PDU + CRC policy |
+
+**ToA** = time the transmitter is actually radiating. Higher SF → longer ToA → more energy and wider collision window.
+
+**Link budget (conceptual):**
+
+$$P_{rx} = P_{tx} + G_{tx} + G_{rx} - L_{soil} - L_{air} - L_{misc}$$
+
+| Term | SLF-EWN order |
+|:-----|:--------------|
+| \(P_{tx}\) | +14…+20 dBm |
+| \(G_{tx}\) / \(G_{rx}\) | Helix ~0–3 dBi · tower whip ~2–6 dBi |
+| \(L_{soil}\) | **10–40 dB** through ~1 m wet clay (**H4** until measured) |
+| \(L_{air}\) | Free-space after breakout; design target **100–200 m** class with tower **1.5–2 m AGL** omni |
+| \(L_{misc}\) | Connectors, polarisation ~1–3 dB |
+
+Need \(P_{rx}\) above usable modem sensitivity (design class ~−125 dBm or better with higher SF). Open-air “many km” figures do **not** apply to the buried metre.
+
 ## Pre-flash (off the PCB)
 
 No ICSP on the buried board. ZIF + Arduino as ISP + AVRDUDE.
@@ -264,7 +299,7 @@ No ICSP on the buried board. ZIF + Arduino as ISP + AVRDUDE.
 |:-----|:------|:--------|
 | Low | `0xE2` | 8 MHz RC, no CKDIV8 |
 | High | `0xDA` | No bootloader |
-| Extended | `0xFD` | BOD off / 1.8 V — never Arduino 2.7 V |
+| Extended | `0xFD` | **BOD** (Brown-Out Detector) off / 1.8 V — never Arduino 2.7 V (locks as Li-SOCl₂ ages) |
 
 Tower: **16 MHz crystal fuses**, not `0xE2`.
 
@@ -280,3 +315,5 @@ Tower: **16 MHz crystal fuses**, not `0xE2`.
 | Dashboard | `0xAA` header after `'S'` / `'D'` |
 | `'D'` dump | 16-byte records, CRC already checked |
 | Sleep (production) | `SIM_FAST_WAKE` off, &lt; 10 µA |
+
+---

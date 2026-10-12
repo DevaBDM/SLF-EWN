@@ -71,7 +71,7 @@ Surface rain gauges and cameras see failure late. Subsurface moisture and deform
 
 ## How a day in the field looks
 
-**Node (as in `transmitter.c`).** Hibernate (WDT 8 s ticks; **`SIM_FAST_WAKE` → 1 tick in the sim build**) **or** INT0 → FET on 5 ms → accel + ADC1 → FET off → 12-byte CRC frame → FET on 2 ms → SPI `0x8D` + payload → FET off. Default ID **`0x0104`**. No `(id % 30)` jitter yet.
+**Node (as in `transmitter.c`).** Hibernate (WDT 8 s ticks; **`SIM_FAST_WAKE` → 1 tick in the sim build only**) **or** INT0 → sample → 12-byte CRC frame → LoRa TX → sleep. Production path uses **SX1278 registers** (not Proteus `0x8D`). Stagger: **15 min + (id % 30) s**. Default ID **`0x0104`**. 
 
 **Tower (`receiver.c`).** DIO0 ISR clocks 12 bytes (SPI Mode 1) → CRC → 16-byte flash record. PC **polls** UART 115200 (`0xAA` replies). Unplugged PC: still logs until the 128 KB stand-in is full.
 
@@ -107,7 +107,8 @@ Bytes: [[Firmware Hub#Data formats]]. Pins: [[Transmitter Simulation]] / [[Recei
 | ADXL345 module | 1 | 2.50 |
 | ZVP2106A TO-92 | 1 | 0.25 |
 | Li-SOCl₂ AA ~2400 mAh | 1 | 4.00 |
-| Supercap 1 F / 5.5 V | 1 | 1.50 |
+| Supercap 47 mF / 5.5 V | 1 | 1.20 |
+| Series R 1.2 kΩ (charge limit) | 1 | 0.05 |
 | FR-4 1-layer 50×50 mm | 1 | 2.00 |
 | PVC ~50×100 mm + caps | 1 | 3.00 |
 | SMA-TH + female 2.54 mm headers | — | 1.40 |
@@ -140,7 +141,7 @@ Shared jig: Arduino as ISP ~$25 (one for the lab). Optional outdoor 433 MHz whip
 - **−60…+85 °C** — buried temperature swings.
 - **Flat** voltage until end of life — simpler brown-out story than Li-ion sag.
 
-TX peaks **~120 mA** when the PA turns on. A thionyl cell’s continuous current is far below that, so a parallel **1 F / 5.5 V** supercap on the **transmitter** trickle-charges and supplies the burst. Do **not** use a 3.6 V-rated memory-backup cap sitting at its ceiling — life collapses. The **receiver / tower does not use this supercap** (USB-powered). Circuit split: [[EasyEDA Hub#Circuit decisions (TX vs RX)]].
+TX peaks **~120 mA** for ~50 ms (SF7 class ToA). A thionyl cell cannot source that peak cleanly, so the **transmitter** uses an RC buffer: **1.2 kΩ series** from the cell, then **47 mF / 5.5 V** on the always-on rail. Math (same as challenges **E5**): $\Delta Q = 0.006\,\mathrm{C}$, $\Delta V \approx 127\,\mathrm{mV}$, $I_\mathrm{max} = 3.0\,\mathrm{mA}$, $\tau = 56.4\,\mathrm{s}$, $5\tau \approx 4.7\,\mathrm{min} \ll 15\,\mathrm{min}$. Do **not** use a 2.7 V or 3.6 V memory-backup cap on a 3.6 V cell. The **receiver does not use this network** (USB-powered). See [[EasyEDA Hub#Circuit decisions (TX vs RX)]] · [[Challenges and Solutions#E5]].
 
 **2-pin jumper (master disconnect):** storage and shipping (zero drain), safe handling while inserting the socketed MCU, no slide switch to fill with dirt.
 
@@ -163,7 +164,7 @@ Open-air LoRa can be **10–15 km**. Soil is a different channel.
 
 Design target: **1 m through soil**, **200–500 m** once in air.
 
-Airtime: **SF7** (baseline), 125 kHz, payload 12 bytes → **~290 ms** ToA. The **200–500 m** range target is met by SF7 (typical) with SF8/SF9 as margin for soil/fading. SF7–8 stay **< 500 ms**; SF9 (~1.16 s) is the upper bound of the range class. Sensitivity to about **−148 dBm**; node TX **14–20 dBm**.
+Airtime (explicit header, CRC on, preamble 8, BW 125 kHz, CR 4/5, 12-byte payload): **SF7 ≈ 41 ms**, SF8 ≈ 72 ms, SF9 ≈ 144 ms (standard LoRa symbol math). Design energy uses **~50 ms** class including sensor overhead. SF7 is code baseline; SF8/SF9 are margin if soil loss is worse. Sensitivity improves with SF; node TX **PA_BOOST ~+14…+17 dBm** class (`REG_PA_CONFIG 0x8F`).
 
 **λ/4 in air** (VF ≈ 0.95 for copper):
 
@@ -179,6 +180,23 @@ In a material: $\lambda_{\mathrm{med}} = \lambda_{\mathrm{air}}/\sqrt{\varepsilo
 A bare wire in clay is never resonant for long. Wind **17.0 cm** of solid copper on a **5 mm** mandrel, **18–22** close turns → **~3.5 cm** tall. Keep that coil in an **air-filled** plastic volume. Helix **vertical**; tower whip **vertical**. Tower antenna **1.5–2 m** on a pole (dirt at ground level eats the incoming wave). Buried capsule **level**. Tower: high-gain **omnidirectional outdoor** whip — the node helix is electrically small; the tower is not size-limited.
 
 ---
+
+
+### Spreading factor (SF7–9) and ToA
+
+| SF | Role |
+|:---|:-----|
+| **SF7** | **Baseline in code** — shortest time-on-air for 12-byte frames |
+| SF8–9 | Design **margin** if soil loss is worse than expected |
+| SF10+ | Avoid for routine reports (long ToA, collisions, energy) |
+
+**ToA** ≈ **41 ms** pure airtime at SF7 (use **~50 ms** with sample overhead for \(\Delta Q\)). TX and RX SF/BW/CR must match.
+
+### Link budget
+
+$$P_{rx} = P_{tx} + G_{tx} + G_{rx} - L_{soil} - L_{air} - L_{misc}$$
+
+Soil (\(L_{soil}\), ~**10–40 dB** for 1 m wet clay) is the main uncertainty (**H4**). After breakout, design air target is **100–200 m** with a tower whip **1.5–2 m AGL** (omnidirectional). PA is **PA_BOOST** (~+14…+20 dBm); peak current is why the TX **47 mF + 1.2 kΩ** buffer exists. Detail: [[Firmware Hub#RF settings (production)]].
 
 ## Where we deploy
 

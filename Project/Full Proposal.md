@@ -61,7 +61,7 @@ Subsurface moisture and internal deformation sit closer to the failure mechanism
  │ ADXL345             │ ──────────────────► │ Ra-02 RX         │
  │ ATmega328P 8 MHz RC │                     │ W25Q64 flash     │
  │ Ra-02 TX            │                     │ FT232RL USB      │
- │ Li-SOCl₂ + supercap │                     └────────┬─────────┘
+ │ Li-SOCl₂ + 47 mF RC │                     └────────┬─────────┘
  │ ZVP2106A gate       │                              │ USB-UART
  └─────────────────────┘                              ▼
                                               Qt 6 / QML dashboard
@@ -126,7 +126,7 @@ Wet clay ($\varepsilon_r \approx 30$) collapses electrical length toward ~3 cm a
 
 ### 3.4 Node power
 
-**3.6 V Li-SOCl₂** (~2400 mAh AA): high energy density, &lt;1%/year self-discharge, flat voltage, −60…+85 °C. TX peaks ~120 mA → parallel **1 F / 5.5 V** supercap for the burst. **2-pin jumper** for storage and safe MCU insertion (no slide switch in mud).
+**3.6 V Li-SOCl₂** (~2400 mAh AA): high energy density, &lt;1%/year self-discharge, flat voltage, −60…+85 °C. TX peaks ~120 mA for ~50 ms → **RC buffer: 1.2 kΩ series + 47 mF / 5.5 V** on the always-on rail ($\Delta V\approx127$ mV, $I_\mathrm{max}=3$ mA, $5\tau\approx4.7$ min ≪ 15 min). **2-pin jumper** for storage and safe MCU insertion (no slide switch in mud). RX has no supercap.
 
 ### 3.5 Tower hardware
 
@@ -208,7 +208,7 @@ TX sheet at **3.6 V**, RX at **5 V**. Fake ADXL345 and Ra-02 are child ATmega328
 
 1. ZIF + Arduino as ISP + AVRDUDE; flash and power-cycle check.  
 2. Solder socket, passives, FET, headers, SMA, moisture pads, jumper.  
-3. Insert pre-flashed MCU, cell, supercap, modules; POST; remove jumper for storage.  
+3. Insert pre-flashed MCU, cell, **1.2 kΩ + 47 mF**, modules; POST; remove jumper for storage.  
 
 **Before burial:** dry/wet moisture; motion INT; 1 m soil barrel; sleep **&lt; 10 µA** with `SIM_FAST_WAKE` off; multi-ID dump on the dashboard.
 
@@ -263,7 +263,7 @@ Wet clay ~10–40 dB/m at 433 MHz. Helix stays in an **air pocket**; tower whip 
 
 ### 10.3 Multi-year battery life
 
-Li-SOCl₂ cannot source the TX peak alone → supercap. Average current must stay well under 10 µA at 15 min interval. Hibernation, FET gating, and real radio sleep are mandatory.
+Li-SOCl₂ cannot source the TX peak alone → **47 mF + 1.2 kΩ** RC buffer. Average current must stay well under 10 µA at 15 min interval. Hibernation, FET gating, and real radio sleep are mandatory.
 
 ### 10.4 Non-recoverable nodes
 

@@ -46,7 +46,7 @@ Top cap (gasket, removable)
 ├─ Ra-02 on 2.54 mm headers
 ├─ ATmega328P in DIP-28 socket
 ├─ ADXL345 + ZVP2106A + decoupling
-├─ Supercap 1 F / 5.5 V
+├─ Supercap 47 mF / 5.5 V + 1.2 kΩ series
 ├─ Li-SOCl₂ AA (or 2/3A)
 ├─ Moisture blade through bottom cap into soil
 Bottom cap (permanent after potting)

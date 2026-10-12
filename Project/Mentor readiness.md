@@ -105,7 +105,7 @@ Full tables: [[Project Overview#IEC standards and feasibility]] · [[Full Propos
 | 7-year average ceiling ~39 µA | Calendar arithmetic | Design calc |
 | Target &lt; 10 µA average | Margin for cold/leakage | **Unmeasured** on HW |
 | Duty cycle active share ~1.7 µA | 50 ms / 900 s at 30 mA | Design calc |
-| PA peak | 1 F supercap + P-MOS load switch | Designed |
+| PA peak | **47 mF / 5.5 V** + **1.2 kΩ** RC + P-MOS load switch | Designed ($\Delta V\approx127$ mV, $I_\mathrm{max}=3$ mA) |
 | `SIM_FAST_WAKE` | Must be off in production | Open **F1** |
 
 **Mentor line:** lifetime is **feasible on paper**; burial claims wait on measured sleep current and seal integrity.

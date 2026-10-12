@@ -286,7 +286,7 @@ TX and RX must agree on frequency, spreading, bandwidth, sync, and payload lengt
 | Spreading / bandwidth | SF7–9 class, **125 kHz** (TX/RX matched)                       |
 | TX power              | ≈ **14–20 dBm** (PA_BOOST class)                               |
 | Payload               | **12 bytes** + CRC policy as implemented                       |
-| ToA preference        | **&lt; 500 ms** per packet; **SF7** gives ~290 ms at 12 bytes, |
+| ToA preference        | **&lt; 500 ms** per packet; **SF7** ≈ **41 ms** pure airtime (~50 ms with sample overhead) |
 | Tower antenna         | Vertical polarisation, **1.5–2 m** AGL, omni                   |
 
 **Conceptual link budget**
@@ -528,7 +528,7 @@ $$
 | Self-discharge            | &lt; 1 %/year typ. @ 20 °C | Calendar life                                       |
 | Target $I_{\mathrm{avg}}$ | **&lt; 10 µA**             | Margin for cold, PCB leakage, ageing                |
 | BOD fuses                 | Off / 1.8 V class          | Avoid 2.7 V BOD lock as cell ages                   |
-| Supercap                  | **47 mF @ 2.7 V + 1.2 kΩ** | $\Delta V$=127 mV; $I_\text{max}$=3.0 mA; $\tau$=56.4 s; 4.7 min recharge (5τ) |
+| Supercap                  | **47 mF / 5.5 V + 1.2 kΩ series** | $\Delta V$≈127 mV; $I_\mathrm{max}$=3.0 mA; $\tau$=56.4 s; 5τ≈4.7 min ≪ 15 min |
 | Disconnect                | 2-pin jumper               | Zero drain in storage; no dirt-filled switch       |
 
 ---
@@ -600,14 +600,14 @@ flowchart LR
 
 ## E5 — Optimized RC Network for the TX Current Pulse
 ### Buffering the Rail Without Straining the Li-SOCl₂ Cell
-The LoRa PA pulse draws 120 mA for 50 ms. Bobbin-type Li-SOCl₂ cells cannot deliver this cleanly due to high internal resistance. A tuned 47 mF Supercapacitor paired with a 1.2 kΩ Resistor solves this constraint perfectly.
+The LoRa PA pulse draws 120 mA for 50 ms. Bobbin-type Li-SOCl₂ cells cannot deliver this cleanly due to high internal resistance. A tuned **47 mF / 5.5 V** supercapacitor with a **1.2 kΩ series** resistor solves the constraint: topology is **cell → R → always-on rail || C → GND**, so TX current comes from **C** while charge current from the cell is limited by **R**.
 
 **1. The 50 ms Discharge Profile:**
 
 $$\Delta Q = I \Delta t = 0.120\,\mathrm{A} \times 0.050\,\mathrm{s} = \mathbf{0.006\,\mathrm{C}}$$ 
 $$\Delta V = \frac{\Delta Q}{C} = \frac{0.006\,\mathrm{C}}{0.047\,\mathrm{F}} \approx \mathbf{0.127\,\mathrm{V}}\ (127\,\mathrm{mV})$$ 
 
-* Result: The 3.6 V rail only drops to 3.47 V, staying safely clear of MCU brownout limits.
+* Result: Ideal \(C\)-only dip ≈ 127 mV → rail ~3.47 V, clear of BOD. **Real EDLC ESR** adds \(I\cdot R_\mathrm{ESR}\) during the pulse — prefer a low-ESR 47 mF part and verify on the bench.
 
 **2. Cell Protection & Charging Dynamics:**
 
@@ -832,7 +832,7 @@ flowchart TB
   R[Ra-02 on headers]
   M[ATmega328P in DIP-28 socket]
   S[ADXL345 · ZVP2106A · decoupling]
-  C[1 F supercap]
+  C[47 mF supercap + 1.2 kΩ]
   B[Li-SOCl₂]
   P[Moisture blade through potted bottom]
   T --> R --> M --> S --> C --> B --> P
@@ -1087,7 +1087,7 @@ flowchart TB
 
 1. **433 MHz LoRa (SX1278 / Ra-02)** is justified by soil attenuation and sensitivity at low rate—not by generic IoT fashion.
 2. **Fixed 12-byte PDUs** bound energy, time-on-air, and collision window; zones, maps, and rich history stay on the host.
-3. **Energy architecture** is Li-SOCl₂ + **4.7 mF** buffer + P-MOS load switch (moisture + LoRa only) + long WDT + ADXL activity in sleep.
+3. **Energy architecture** is Li-SOCl₂ + **47 mF / 5.5 V** + **1.2 kΩ** series RC buffer + P-MOS load switch (moisture + LoRa only) + long WDT + ADXL activity in sleep.
 4. **RF closure** needs air-pocket helix, polarisation, tower height, and PCB EMI discipline—not only a module datasheet.
 5. **Phase 1 residual risk** is **validation and fab** (sleep µA, soil loss, boards)—not an undefined architecture.
 6. **Firmware supply-chain:** self-implemented drivers and protocol; toolchain headers only.

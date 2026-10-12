@@ -15,7 +15,7 @@ parent: "[[EasyEDA Hub]]"
 |:-----|:------|
 | Size | **50 × 50 mm**, 1-layer THT |
 | MCU | ATmega328P-PU in DIP-28 socket, 8 MHz RC |
-| Power | 3.6 V Li-SOCl₂ + **47 mF / 5.5 V supercap (TX only)** |
+| Power | 3.6 V Li-SOCl₂ + **1.2 kΩ** + **47 mF / 5.5 V** supercap (TX only) |
 
 **Schematic** · **PCB** · **3D**
 
@@ -33,7 +33,8 @@ parent: "[[EasyEDA Hub]]"
 | Accel | **ADXL345** | `ADXL345` | Header | **Always on 3.6 V** (motion INT in sleep) |
 | Moisture | Capacitive v1.2 | `Capacitive Soil Moisture` | Edge pads | **VCC_SW** (FET-gated) |
 | FET | ZVP2106A | `ZVP2106A` | TO-92 | High-side switch for VCC_SW |
-| Energy buffer | **47 mF / 5.5 V supercap** | — | Parallel to cell | **TX only** — PA peak |
+| Series R | **1.2 kΩ** | — | Cell → always-on rail | Inrush limit 3.0 mA |
+| Energy buffer | **47 mF / 5.5 V supercap** | — | After R, to GND | **TX only** — PA peak |
 | Cell | Li-SOCl₂ AA ~2400 mAh | — | Holder / wires | Primary energy |
 | Antenna | SMA-TH + helix | `SMA-TH` | Board edge | Air-pocket helix |
 | Disconnect | 2-pin header + shunt | — | Master power | Storage isolation |
@@ -41,13 +42,16 @@ parent: "[[EasyEDA Hub]]"
 ### Power architecture (important)
 
 ```
-Li-SOCl₂ ──┬── 47 mF supercap ──┬── MCU VCC / AVCC (always)
-           │                  ├── ADXL345 VCC (always — low-power INT mode)
-           │                  └── FET source
-                              FET drain = VCC_SW
-                                    ├── Moisture sensor VCC
-                                    └── Ra-02 VCC
+Li-SOCl₂ ── 1.2 kΩ ──┬── 47 mF / 5.5 V supercap ── GND
+                     ├── MCU VCC / AVCC (always)
+                     ├── ADXL345 VCC (always — low-power INT mode)
+                     └── FET source
+                         FET drain = VCC_SW
+                               ├── Moisture sensor VCC
+                               └── Ra-02 VCC
 Gate PD4 + 100 kΩ pull-up to 3.6 V (OFF during reset)
+
+ΔV ≈ 127 mV @ 120 mA × 50 ms; I_max = 3.0 mA; τ = 56.4 s; 5τ ≈ 4.7 min ≪ 15 min
 ```
 
 | Rail | Loads | Why |
@@ -85,7 +89,8 @@ Must match `transmitter.c` (DIP-28):
 | Decouple ADXL | **0.1 µF** | at module VCC (always-on rail) |
 | Decouple radio | **0.1 µF + 10–100 µF** | at Ra-02 VCC on **VCC_SW** |
 | Decouple moisture | **0.1 µF** | at probe VCC on **VCC_SW** |
-| Supercap | **47 mF / 5.5 V** | cell + to GND (polarity!) |
+| Series R | **1.2 kΩ** | between cell/jumper and always-on rail |
+| Supercap | **47 mF / 5.5 V** | always-on rail to GND (polarity!) |
 | RESET | **10 kΩ** | RESET → 3.6 V |
 
 **Optional (nice, not mandatory for prototype)**

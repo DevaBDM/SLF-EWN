@@ -29,7 +29,7 @@ Boards: [[Transmitter PCB]] · [[Receiver PCB]]
 
 | Item | Buried TX | Tower RX |
 |:-----|:----------|:---------|
-| **1 F / 5.5 V supercap** | **Yes** — parallel to Li-SOCl₂ | **No** |
+| **47 mF / 5.5 V supercap** | **Yes** — with **1.2 kΩ** series R from cell | **No** |
 | **1.2 kΩ series R** | **Yes** — limits inrush to 3.0 mA | **No** |
 | **τ = 56.4 s** | RC time constant | **No** |
 | **5τ = 282 s (4.7 min)** | Full recharge window | **No** |
@@ -49,12 +49,12 @@ Boards: [[Transmitter PCB]] · [[Receiver PCB]]
 ### Power tree
 
 ```
-Li-SOCl₂ (+) ── 2-pin jumper ──┬── 1F supercap (+)
-                               ├── MCU VCC, AVCC
-                               ├── ADXL345 VS + VDD_IO
-                               ├── 100 kΩ CS pull-ups, RESET pull-up
-                               └── ZVP2106A SOURCE
-Li-SOCl₂ (−) ──────────────── GND (entire board)
+Li-SOCl₂ (+) ── 2-pin jumper ── 1.2 kΩ ──┬── 47 mF supercap (+)
+                                         ├── MCU VCC, AVCC
+                                         ├── ADXL345 VS + VDD_IO
+                                         ├── 100 kΩ CS pull-ups, RESET pull-up
+                                         └── ZVP2106A SOURCE
+Li-SOCl₂ (−) ──────────────────────────── GND (entire board)
 
 ZVP2106A DRAIN = VCC_SW
   ├── Moisture probe VCC
@@ -91,12 +91,13 @@ ZVP2106A GATE ← PD4, with 100 kΩ to always-on 3.6 V
 | **ADXL345** | VS+VDD_IO → **always-on 3.6 V**; INT1 → PD2; SPI; CS → PB2 | Do **not** power from VCC_SW |
 | **Ra-02** | 3.3V → **VCC_SW**; NSS PB1; DIO0 PD3; SPI; ANT→SMA; RESET 10 kΩ to VCC_SW | — |
 | **Moisture** | VCC → **VCC_SW**; SIG → PC1; GND | — |
-| **Supercap** | + to cell + after jumper; − to GND | Not on RX |
+| **Supercap 47 mF** | + on always-on rail after **1.2 kΩ**; − to GND | Not on RX |
+| **Series R 1.2 kΩ** | Between cell/jumper and always-on rail | Limits inrush to 3 mA |
 | **SMA** | Center → Ra-02 ANT; shield → GND | Long skinny ANT track |
 
 ### Passives (TX)
 
-100 kΩ: GATE, LORA_NSS, ACCEL_CS · 10 kΩ: MCU RESET · 0.1 µF at MCU VCC/AVCC, ADXL, Ra-02, moisture · 10–100 µF at Ra-02 on VCC_SW · **1 F / 5.5 V** across cell · optional Schottky on cell.
+100 kΩ: GATE, LORA_NSS, ACCEL_CS · 10 kΩ: MCU RESET · **1.2 kΩ series** cell→rail · **47 mF / 5.5 V** on always-on rail · 0.1 µF at MCU VCC/AVCC, ADXL, Ra-02, moisture · 10–100 µF at Ra-02 on VCC_SW · optional Schottky on cell.
 
 **Not on TX:** crystal, USB, FT232, LM1117, W25Q64.
 
@@ -146,12 +147,24 @@ GND common
 
 ## Layout rules (both)
 
+### Units: mil (use these in EasyEDA)
+
+**1 mil = 0.001 inch ≈ 0.0254 mm.** EasyEDA trace width and clearance dialogs commonly use **mil**. Set design rules / track properties to the values below when drawing TX and RX boards.
+
+| Class | Width | Where |
+|:------|:------|:------|
+| **Power** | **30–40 mil** | Cell/jumper → 1.2 kΩ → always-on rail; FET drain → Ra-02 VCC; supercap leads |
+| **Signal** | **~10 mil** | SPI, CS, INT, ADC, UART |
+| **ANT** | Short, as wide as practical to SMA centre | Minimise inductance; keep away from noisy SPI if possible |
+
+Also:
+
 - 0.1 µF within **5 mm** of each IC VCC  
-- TX high-current traces **30–40 mil**  
-- Signals ~**10 mil**  
 - Moisture ADC away from RF/digital (TX)  
 - 1-layer crossings = jumper only  
 - DIP-28 socket; female headers for modules  
+
+Full netlists: sections above.
 
 ---
 

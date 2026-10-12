@@ -46,7 +46,7 @@ Probe/sim: dry ≈ slider **100%** (~3.6 V, high ADC). Wet ≈ **0%** (~1.0–1.
 
 ### Passives
 
-100 kΩ on `CS_LORA`, `CS_ACCEL`. Pull as required on `INT0`. **1 F / 5.5 V** supercap on always-on VCC–GND (not a 3.6 V memory-backup cap). 100 nF on always-on near MCU/ADXL; 100 nF on `VCC_SW` near radio; AREF as needed.
+100 kΩ on `CS_LORA`, `CS_ACCEL`. Pull as required on `INT0`. **47 mF / 5.5 V** supercap on always-on VCC–GND; **1.2 kΩ** series from cell to rail (inrush ≤ 3 mA) (not a 3.6 V memory-backup cap). 100 nF on always-on near MCU/ADXL; 100 nF on `VCC_SW` near radio; AREF as needed.
 
 BOD fuse 1.8 V or off — Arduino 2.7 V BOD dies on a sagging Li-SOCl₂ cell.
 

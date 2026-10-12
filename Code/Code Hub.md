@@ -12,7 +12,7 @@ parent: "[[Firmware Hub]]"
 
 AVR-GCC C. **No Arduino core.** One `.c` / `.h` per device, coordinators only sequence work. When parts or paths disagree with older notes, **[[Project Overview#What we decided]]** wins — except where this page records a **shop override**.
 
-← [[SLF-EWN Hub]] · Formats: [[Firmware Hub#Data formats]] · Pins: [[Transmitter Simulation]] · [[Receiver Simulation]] · Proposal: [[Full Proposal]] · Overview: [[Project Overview]]
+← [[SLF-EWN Hub]] · Formats: [[Firmware Hub#Data formats]] · Pins: [[Transmitter Simulation]] · [[Receiver Simulation]] · Overview: [[Project Overview]]
 
 ---
 
