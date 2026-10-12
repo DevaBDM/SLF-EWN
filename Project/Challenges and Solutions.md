@@ -17,6 +17,17 @@ enableOverview: true
 enableChalkboard: false
 notesSeparator: "note:"
 ---
+
+# **INSA 2026 — 5th Round Summer Camp**
+
+## **Group 1** · Embedded Department
+
+**Subterranean Landslide and Flood Early-Warning Network**
+
+#### SLF-EWN — Phase 1 challenges, analysis, and design responses
+
+---
+
 ## SLF-EWN
 
 ### Phase 1 engineering challenges, quantitative analysis, and design responses
@@ -44,18 +55,18 @@ Each major section follows **problem → analysis → implementation → status*
 
 **Secondary:** residual Phase 1 validation risk, then a **short** Phase 2/3 look-ahead.
 
-| Section | Topics                                                                     |
-| :------ | :------------------------------------------------------------------------- |
-| **A**   | Architecture, constraints, method                                          |
-| **B**   | Air frame size and protocol                                                |
-| **C**   | Why sub-GHz and why LoRa                                                   |
-| **D**   | Zones, tracking, thresholds, **capacitive vs resistive moisture**          |
-| **E**   | Energy: cell, duty cycle, P-MOSFET, supercap                               |
-| **F**   | Dual wake: WDT and accelerometer INT                                       |
-| **G**   | Soil path loss, antenna, PCB RF noise                                      |
-| **H**   | PCB size, 1-layer rules, HF placement                                      |
-| **I**   | Flash, collisions, pre-flash, encryption, **firmware supply-chain trust**  |
-| **J**   | Risk register, Phase 1 validation, **brief Phase 2/3 review**, conclusions |
+| Section | Topics |
+|:--------|:-------|
+| **A** | System architecture, segment parameters, global constraints |
+| **B** | Air frame size and protocol (12-byte PDU, host wrappers) |
+| **C** | Why not 2.4 GHz · why LoRa CSS · RF configuration |
+| **D** | Zones and identity · post-slide tracking · depth · capacitive moisture · thresholds |
+| **E** | Energy: cell, duty cycle, P-MOSFET, **47 mF + 1.2 kΩ** RC buffer |
+| **F** | Dual wake: WDT period and ADXL345 INT |
+| **G** | Soil path loss · antenna length/geometry · PCB EMI |
+| **H** | Transmitter PCB size · 1-layer THT · HF placement |
+| **I** | Flash (I1–I2) · collisions (I3) · pre-flash (I4) · encryption (I5) · supply-chain trust (I6) |
+| **J** | Conclusions |
 
 ---
 
@@ -531,7 +542,6 @@ With a ~50–150 ms active window every 15 minutes, the duty cycle is $\sim 10^{
 Time-on-Air (ToA) Profile for a 12-byte payload (433 MHz, 125 kHz BW):
 
 * SF7 Baseline: $\Delta t_{\mathrm{on}} \approx \mathbf{50\,\mathrm{ms}}$ (Includes ~41 ms ToA + sensor sampling overhead)
-* SF8–9 Range: $\Delta t_{\mathrm{on}} \approx \mathbf{100\text{–}150\,\mathrm{ms}}$
 
 Duty Cycle Math (Using the SF7 Baseline @ $T = 15\,\mathrm{min} = 900\,\mathrm{s}$):
 $$D = \frac{\Delta t_{\mathrm{on}}}{T} = \frac{0.05}{900} \approx \mathbf{5.6 \times 10^{-5}}$$ 
@@ -1057,24 +1067,6 @@ Opaque Arduino / vendor packs can change behaviour without review. On a sealed b
 4. **RF closure** needs air-pocket helix, polarisation, tower height, and PCB EMI discipline—not only a module datasheet.
 5. **Phase 1 residual risk** is **validation and fab** (sleep µA, soil loss, boards)—not an undefined architecture.
 6. **Firmware supply-chain:** self-implemented drivers and protocol; toolchain headers only.
-
----
-
-## J5 — Internal references
-
-| Topic | Note |
-|:------|:-----|
-| Decisions, BOM, radio narrative | [[Project Overview]] |
-| Frame, pins, WDT, pre-flash | [[Firmware Hub]] |
-| Source tree, drivers, trust policy | [[Code Hub]] |
-| Host thresholds, Places, registry model | [[Dashboard Hub]] |
-| Open issue IDs (live) | [[Status and open issues]] |
-| Phase 2 / 3 step list (outside this deck) | [[Phase 2 and Phase 3 plan]] |
-| Multi-path / siren / solar / handheld design | [[Data path future architecture]] |
-| Formal proposal text | [[Full Proposal]] |
-| Mentor FAQ / IEC feasibility | [[Mentor readiness]] |
-
-**External inputs used in analysis:** SX1278 / ADXL345 / W25Q64 datasheets; published sub-GHz soil attenuation orders of magnitude; Li-SOCl₂ manufacturer data (self-discharge, temperature).
 
 ---
 
