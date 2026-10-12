@@ -209,11 +209,7 @@ Flash and USB add structure around the PDU without enlarging the RF packet. The 
 
 ### Frequency is a soil-penetration challenge
 
-Compact IoT culture defaults to 2.4 GHz. For a meter of wet clay, that default is the wrong starting point: attenuation rises with frequency, and association-heavy stacks waste energy.
-
-### Carrier frequency and soil attenuation
-
-Wet soil is a **lossy dielectric**. In the bands used by compact IoT radios, path loss through wet clay **worsens as frequency rises**.
+Compact IoT defaults to 2.4 GHz. Wet soil is a **lossy dielectric**: path loss through wet clay **worsens as frequency rises**, and association-heavy stacks also waste energy.
 
 | Technology | Typical role | Fit for 1 m wet soil + long life? |
 |:-----------|:-------------|:----------------------------------|
@@ -230,16 +226,13 @@ $$
 L(d{=}1\,\mathrm{m}) \sim 10\text{–}40\ \mathrm{dB}
 $$
 
-**Segment targets used in design**
-## Sequential Path Loss & Link Budget Accounting
-Assuming a baseline LoRA Link Budget of 145 dB ($+20\text{ dBm}$ Tx, $-125\text{ dBm}$ Rx):
+**Link-budget sketch** (order of magnitude, ~145 dB class: +20 dBm Tx → −125 dBm Rx):
 
-* Step 1 (The Bottleneck): Passing through 1 m of wet clay consumes **10** to **40** dB.
-* Step 2 (The Leftover Budget): Leaving the soil, the signal retains **105** to **135** dB of budget for open air.
-* Step 3 (Air Travel Capacity): In free air, this remaining budget is mathematically capable of kilometers, easily clearing our 200-500 m design target to the elevated tower antenna with an exceptional fading margin.
+1. 1 m wet clay consumes **10–40 dB**.
+2. Remaining air budget ≈ **105–135 dB**.
+3. That is enough for the **100–200 m** design target with an elevated tower — not a claim of unconstrained open-air kilometres.
 
-
-> Open-air LoRa marketing figures (many km) **do not** apply directly to the buried meter, but the remaining sub-GHz energy easily handles our target segment.
+> Marketing “many km” figures **do not** apply to the buried metre. **H4** still needs a measured soil path.
 
 ---
 
@@ -583,10 +576,10 @@ flowchart LR
   PIN[MCU PD4 · drive LOW = rail ON] --> FET
 ```
 
-| Mode | Gate | Moisture and LoRa |
-|:-----|:-----|:------------------|
-| Hibernate | Held off (pull-up to VCC) | **Unpowered** — no quiescent module current |
-| Measure / TX | Driven on for a short window | Powered only when needed |
+| Mode         | Gate                         | Moisture and LoRa                           |
+| :----------- | :--------------------------- | :------------------------------------------ |
+| Hibernate    | Held off (pull-up to VCC)    | **Unpowered** — no quiescent module current |
+| Measure / TX | Driven on for a short window | Powered only when needed                    |
 
 **Why P-MOS high-side**
 
@@ -611,10 +604,8 @@ $$\Delta V = \frac{\Delta Q}{C} = \frac{0.006\,\mathrm{C}}{0.047\,\mathrm{F}} \a
 
 **2. Cell Protection & Charging Dynamics:**
 
-* Peak Battery Drain: $I_\text{max} = \frac{V_\text{cell}}{R} = \frac{3.6\,\mathrm{V}}{1.2\,\mathrm{k}\Omega} = \mathbf{3.0\,\mathrm{mA}}$ under worst-case empty-inrush. Completely avoids chemical passivation and cell strain.
-* RC Time Constant: $\tau = R \cdot C = 1.2\,\mathrm{k}\Omega \times 47\,\mathrm{mF} = \mathbf{56.4\,\mathrm{s}}$
-* Full Recharge Window: $t_\text{charge} = 5\tau = \mathbf{282\,\mathrm{s}} \approx \mathbf{4.7\,\mathrm{min}}$ — well within the 15-minute wake cycle.
-* Voltage Dip: $\Delta V = \Delta Q/C = 0.006/0.047 = \mathbf{0.127\,\mathrm{V}}$ — rail stays at 3.47 V, safely above the 2.7 V BOD threshold.
+* Peak battery drain: $I_\text{max} = V_\text{cell}/R = 3.6/1.2\,\mathrm{k}\Omega = \mathbf{3.0\,\mathrm{mA}}$ (worst-case empty-cap inrush) — avoids passivation / cell strain.
+* RC time constant: $\tau = R \cdot C = \mathbf{56.4\,\mathrm{s}}$; full recharge $5\tau \approx \mathbf{4.7\,\mathrm{min}} \ll 15\,\mathrm{min}$ wake.
 
 ```mermaid
 gantt
@@ -626,11 +617,10 @@ gantt
     Quiescent Trickle / Pure Sleep   :crit, 282, 900
 ```
 
-### Technical Implementation Notes
+### Parts
 
-* **Capacitor:** 47 mF / 5.5 V low-leakage EDLC self-discharge < 0.5 µA protects the 7-year life budget.
-* **Resistor:** 1.2 kΩ, 1/4 W, 1% metal-film (e.g., Yageo RC series) — 0603 or 0805 SMD for compact PCB fit.
-* **Combined:** $R \cdot C = 56.4\,\mathrm{s}$; $5\tau = 4.7\,\mathrm{min}$ recharge fits comfortably in the 15-minute cycle.
+* **Capacitor:** 47 mF / 5.5 V low-leakage EDLC (TX only; self-discharge ideally ≪ 1 µA class).
+* **Resistor:** 1.2 kΩ, 1/4 W, 1% metal-film.
 
 ---
 
@@ -931,7 +921,7 @@ $$
 
 ---
 
-## I1 — Flash Storage: Wear Mitigation via Ring Buffer
+## I2 — Flash Storage: Wear Mitigation via Ring Buffer
 
 ### Defeating the 100k Erase Cycle Limit without a Filesystem
 Standard SPI NOR flash cells degrade after 100,000 erase cycles. Modifying a single "hot" sector repeatedly will quickly destroy the chip. We implement a raw, sequential ring buffer to distribute wear evenly across the entire chip.
@@ -962,7 +952,7 @@ $$\text{Theoretical Chip Lifetime} = 546 \text{ days} \times 100,000 \text{ cycl
 * By advancing linearly through all 2,048 sectors before resetting, local wear is minimized. The hardware easily outlives the 7-year deployment target.
 
 ---
-## I2 — Multi-node channel contention
+## I3 — Multi-node channel contention
 
 ### One demodulator, many buried transmitters
 
@@ -990,7 +980,7 @@ sequenceDiagram
 
 ---
 
-## I3 — Pre-flash manufacturing
+## I4 — Pre-flash manufacturing
 
 ### No 5 V ISP on a 3.6 V buried board
 
@@ -1013,7 +1003,7 @@ flowchart LR
 
 ---
 
-## I4 — Confidentiality of the air interface
+## I5 — Confidentiality of the air interface
 
 ### Cleartext ISM is observable
 
@@ -1042,44 +1032,20 @@ flowchart LR
 
 ---
 
-## I5 — Firmware supply-chain trust (security)
+## I6 — Firmware supply-chain trust (security)
 
 ### Third-party libraries are an integrity risk
 
-Opaque Arduino or vendor packs can change behaviour without review. Solution already in force: self-implemented drivers and protocol; only AVR-GCC/avr-libc headers.
+Opaque Arduino / vendor packs can change behaviour without review. On a sealed buried node that is a **security risk**, not only a style choice.
 
-### Challenge: third-party headers and opaque libraries
+**Policy (as built):** drivers and protocol are **self-implemented** in `Code/`; only **AVR-GCC / avr-libc** headers. No Arduino core, no third-party LoRa / ADXL / W25Q / FAT packs.
 
-```mermaid
-flowchart TB
-  EXT[Third-party Arduino / vendor .h+.c packs] --> RISK[Unreviewed behaviour<br/>fork drift · compromised mirror · hidden side effects]
-  RISK --> FAIL[Wrong SPI timing · silent data change · unexpected TX]
-  OWN[In-tree drivers + protocol] --> REV[Team-readable register maps]
-  REV --> TRUST[Auditable node and tower path]
-  STD[AVR-GCC / avr-libc headers only] --> OWN
-```
-
-**Problem.** Embedded projects often pull LoRa, accelerometer, or flash “libraries.” Those headers and sources can be **edited or substituted** outside the team’s control. For a sealed buried node and a warning path, opaque middleware is a **security and integrity** risk, not only a style preference.
-
-**Solution (as built).**
-
-| Layer | Policy |
-|:------|:-------|
-| Application / drivers | **Self-implemented** in `Code/` from datasheets |
-| Protocol | `slf_protocol.*` owned by the project |
-| Allowed includes | Toolchain only: `avr/io.h`, `avr/interrupt.h`, `avr/sleep.h`, `avr/wdt.h`, `stdint.h`, `string.h`, `util/delay.h` |
-| Rejected | Arduino core, third-party LoRa/ADXL/W25Q packs, FAT stacks |
-
-| Module implemented in-tree | Role |
-|:---------------------------|:-----|
+| In-tree module | Role |
+|:---------------|:-----|
 | `transmitter_accelerometer.*` | ADXL345 SPI + low-power ACTIVITY |
-| `transmitter_lora.*` / `receiver_radio.*` | SX1278 register TX/RX |
+| `transmitter_lora.*` / `receiver_radio.*` | SX1278 registers |
 | `receiver_storage.*` | W25Q64 append / erase |
-| `slf_protocol.*` | 12-byte frame + CRC-8 |
-
-**Honest limit.** The compiler and avr-libc still must be genuine; this policy removes **application-level** third-party middleware, not formal binary attestation of the whole toolchain.
-
-**Status:** **Done** for the current node/tower firmware path — [[Code Hub#Self-implemented firmware (supply-chain / trust policy)]]. Complements planned **air-frame encryption (F7)**; encryption protects the RF observer, self-built drivers protect the **build integrity** of the device software.
+| `slf_protocol.*` | 12-byte PDU + CRC-8 |
 
 ---
 
