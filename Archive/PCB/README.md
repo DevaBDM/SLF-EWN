@@ -11,7 +11,7 @@
 * **Block Diagram:** `![[system-block-diagram.png]]`
 * **Communication Matrix:**
   * **Protocol:**  LoRa
-  * **Target Range:** 1 meters underground , 100 to 200 meters on surface
+  * **Target Range:** 1 meters underground , 200 to 500 meters on surface
   * **Data Rate:** ~290 bps, with ToA of SF10, this takes arround 330 milliseconds.
 
 ---

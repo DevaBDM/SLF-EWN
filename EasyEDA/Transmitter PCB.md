@@ -15,7 +15,7 @@ parent: "[[EasyEDA Hub]]"
 |:-----|:------|
 | Size | **50 × 50 mm**, 1-layer THT |
 | MCU | ATmega328P-PU in DIP-28 socket, 8 MHz RC |
-| Power | 3.6 V Li-SOCl₂ + **1 F / 5.5 V supercap (TX only)** |
+| Power | 3.6 V Li-SOCl₂ + **47 mF / 5.5 V supercap (TX only)** |
 
 **Schematic** · **PCB** · **3D**
 
@@ -33,7 +33,7 @@ parent: "[[EasyEDA Hub]]"
 | Accel | **ADXL345** | `ADXL345` | Header | **Always on 3.6 V** (motion INT in sleep) |
 | Moisture | Capacitive v1.2 | `Capacitive Soil Moisture` | Edge pads | **VCC_SW** (FET-gated) |
 | FET | ZVP2106A | `ZVP2106A` | TO-92 | High-side switch for VCC_SW |
-| Energy buffer | **1 F / 5.5 V supercap** | — | Parallel to cell | **TX only** — PA peak |
+| Energy buffer | **47 mF / 5.5 V supercap** | — | Parallel to cell | **TX only** — PA peak |
 | Cell | Li-SOCl₂ AA ~2400 mAh | — | Holder / wires | Primary energy |
 | Antenna | SMA-TH + helix | `SMA-TH` | Board edge | Air-pocket helix |
 | Disconnect | 2-pin header + shunt | — | Master power | Storage isolation |
@@ -41,7 +41,7 @@ parent: "[[EasyEDA Hub]]"
 ### Power architecture (important)
 
 ```
-Li-SOCl₂ ──┬── 1 F supercap ──┬── MCU VCC / AVCC (always)
+Li-SOCl₂ ──┬── 47 mF supercap ──┬── MCU VCC / AVCC (always)
            │                  ├── ADXL345 VCC (always — low-power INT mode)
            │                  └── FET source
                               FET drain = VCC_SW
@@ -85,7 +85,7 @@ Must match `transmitter.c` (DIP-28):
 | Decouple ADXL | **0.1 µF** | at module VCC (always-on rail) |
 | Decouple radio | **0.1 µF + 10–100 µF** | at Ra-02 VCC on **VCC_SW** |
 | Decouple moisture | **0.1 µF** | at probe VCC on **VCC_SW** |
-| Supercap | **1 F / 5.5 V** | cell + to GND (polarity!) |
+| Supercap | **47 mF / 5.5 V** | cell + to GND (polarity!) |
 | RESET | **10 kΩ** | RESET → 3.6 V |
 
 **Optional (nice, not mandatory for prototype)**
@@ -107,7 +107,7 @@ SMA + air for helix
 Ra-02 on female 2.54 mm          ← VCC_SW
 ATmega328P in DIP-28
 ADXL345 + ZVP2106A + ceramics    ← ADXL on always-on 3.6 V
-1 F / 5.5 V supercap
+47 mF / 5.5 V supercap
 Li-SOCl₂ AA
 Moisture blade through bottom    ← VCC_SW
 ```
@@ -117,4 +117,5 @@ Reserve **unpopulated** pads for a future digital extensometer — do not fit th
 **BOM (this board):** MCU + socket, Ra-02, ADXL345, moisture probe, ZVP2106A, Li-SOCl₂, **supercap**, SMA, headers, passives. **~$27.** Totals: [[Project Overview#Bill of materials]].
 
 **Not on TX:** USB, FT232, crystal (RC clock), W25Q64, LM1117.
+
 '''

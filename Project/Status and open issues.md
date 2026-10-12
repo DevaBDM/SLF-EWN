@@ -58,7 +58,7 @@ Last reviewed: **2026-10-06**. When code lands a fix, tick the item here and upd
 | H1 | **PCB fab not ordered** | High | 1-layer THT TX 50×50 mm, RX 95×70 mm — [[EasyEDA Hub]] |
 | H2 | **Pre-flash fuse recipe for tower** | Medium | Node fuses documented (`0xE2` / `0xDA` / `0xFD`). Tower **16 MHz crystal** fuses are a separate recipe — write them down before first tower board |
 | H3 | **Sleep current unmeasured** | High before burial | Target **&lt; 10 µA** with `SIM_FAST_WAKE` off. Needs µA meter on real hardware |
-| H4 | **Through-soil RF unproven** | High | Design assumes 1 m soil + 100–200 m air. Needs soil-barrel / pit test |
+| H4 | **Through-soil RF unproven** | High | Design assumes 1 m soil + 200–500 m air. Needs soil-barrel / pit test |
 | H5 | **Single-vendor parts risk** | Medium | Moisture v1.2, ZVP2106A, Ra-02 from local shelf — [[Project Overview#Shop]] |
 | H6 | **Confirm EasyEDA: ADXL always-on; supercap TX-only** | Medium | Docs fixed 2026-10-06. Before fab verify schematic nets — [[EasyEDA Hub#Circuit decisions (TX vs RX)]] |
 

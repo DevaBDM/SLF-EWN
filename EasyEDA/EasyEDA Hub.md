@@ -21,7 +21,7 @@ Boards: [[Transmitter PCB]] · [[Receiver PCB]]
 
 ![[system-block-diagram.png]]
 
-**Link (intent):** LoRa 433 MHz · **1 m** through soil · **100–200 m** after breakout.
+**Link (intent):** LoRa 433 MHz · **1 m** through soil · **200–500 m** after breakout.
 
 ---
 
@@ -30,6 +30,11 @@ Boards: [[Transmitter PCB]] · [[Receiver PCB]]
 | Item | Buried TX | Tower RX |
 |:-----|:----------|:---------|
 | **1 F / 5.5 V supercap** | **Yes** — parallel to Li-SOCl₂ | **No** |
+| **1.2 kΩ series R** | **Yes** — limits inrush to 3.0 mA | **No** |
+| **τ = 56.4 s** | RC time constant | **No** |
+| **5τ = 282 s (4.7 min)** | Full recharge window | **No** |
+| **ΔV = 127 mV** | Voltage dip @ 120 mA × 50 ms | **No** |
+| **I_max = 3.0 mA** | Inrush-limited to Li-SOCl₂ safe | **No** |
 | **ZVP2106A / VCC_SW** | **Yes** — **moisture + Ra-02 only** | **No** |
 | **ADXL345 power** | **Always-on 3.6 V** (INT in sleep) | Not fitted |
 | **Primary cell** | Li-SOCl₂ AA | No (USB) |

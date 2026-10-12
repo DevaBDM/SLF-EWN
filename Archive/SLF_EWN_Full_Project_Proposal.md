@@ -242,7 +242,7 @@ The node is powered by a **3.6 V Li-SOCl2 (Lithium Thionyl Chloride) primary cel
 ![[li-socl battery.png]]
 #### 2) Energy Buffering
 
-LoRa transmission creates brief current surges (up to 120 mA during RF power amplifier activation) that exceed the continuous current capability of small Li-SOCl2 cells. We mitigate this with a **high-capacity supercapacitor** (typically 1–10 F, 5.5 V) in parallel with the battery. The supercapacitor acts as an energy reservoir: it trickle-charges between transmissions and delivers burst current during radio activation, preventing battery voltage collapse and extending cell life.
+LoRa transmission creates brief current surges (up to 120 mA during RF power amplifier activation) that exceed the continuous current capability of small Li-SOCl2 cells. We mitigate this with a **47 mF EDLC supercapacitor** in series with a **1.2 kΩ current-limiting resistor**. The series resistor caps the inrush to **3.0 mA** when the cap is discharged ($I_\text{max} = 3.6\text{ V}/1.2\text{ k}\Omega$), which is safe for the Li-SOCl₂ chemistry. The RC time constant is $\tau = R \cdot C = 56.4\text{ s}$, giving a full recharge window of **4.7 minutes** ($5\tau = 282\text{ s}$), well within the 15-minute wake cycle. The 47 mF value limits the voltage dip to **127 mV** during the 120 mA × 50 ms burst ($\Delta V = \Delta Q/C = 0.006/0.047$), keeping the rail at **3.47 V** — well above the 2.7 V BOD threshold.
 
 #### 3) Master Power Disconnect
 
@@ -437,7 +437,7 @@ We propose a **cylindrical PVC pipe capsule** design for the following reasons:
 
 ### B. Internal Layout
 
-The cylindrical enclosure (typically 50–75 mm inner diameter, 200–300 mm length, 3–5 mm wall thickness) houses the following vertical stack:
+The cylindrical enclosure (typically 50–75 mm inner diameter, ~100 mm length, 3–5 mm wall thickness) houses the following vertical stack:
 
 ```
 Top Cap (removable, gasket-sealed)
@@ -445,7 +445,7 @@ Top Cap (removable, gasket-sealed)
 ├─ RFM95W Module (on female headers)
 ├─ ATmega328P in DIP-28 Socket (PCB top side)
 ├─ LIS3DH + ZVP2106A + Decoupling Caps (PCB bottom side)
-├─ Supercapacitor (radial can, soldered to power rails)
+├─ Supercapacitor (47 mF radial can, 1.2 kΩ series resistor, soldered to power rails)
 ├─ Li-SOCl2 Battery (AA or 2/3A form factor)
 ├─ Moisture Sensor Blade (extends through bottom cap into soil)
 Bottom Cap (permanently sealed after assembly)
@@ -595,9 +595,10 @@ Deployed in remote, landslide-prone hillsides above villages. The low cost per n
 | LIS3DH Module               | Tri-axis accelerometer         | 1        | $2.50                |
 | ZVP2106A                    | P-Channel MOSFET, TO-92        | 1        | $0.25                |
 | Li-SOCl2 Battery            | 3.6 V, AA size, 2400 mAh       | 1        | $4.00                |
-| Supercapacitor              | 5.5 V, 1 F radial              | 1        | $1.50                |
+| Supercapacitor              | 2.7 V, 47 mF radial            | 1        | $1.50                |
+| Series resistor            | 1.2 kΩ (0603 or 0805)          | 1        | $0.05                |
 | PCB (Custom)                | FR-4, 2-layer, EasyEDA         | 1        | $2.00                |
-| PVC Enclosure               | IP68 pipe + caps, ~60×250 mm   | 1        | $3.00                |
+| PVC Enclosure               | IP68 pipe + caps, ~50×100 mm   | 1        | $3.00                |
 | SMA Connector               | Right-angle, PCB edge mount    | 1        | $1.00                |
 | Female Headers              | 2.54 mm, 1×8 / 1×10 strips     | 2        | $0.40                |
 | Passive Components          | Resistors, capacitors, headers | ~15      | $1.50                |

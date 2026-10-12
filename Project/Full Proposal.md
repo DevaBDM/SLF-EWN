@@ -192,7 +192,7 @@ Detail: [[Dashboard Hub]].
 
 ## 6. Mechanical enclosure and visualisation
 
-A **cylinder** (PVC or print) spreads load, fits an auger, and matches the inline PCB. Typical shop pipe ~60×250 mm. Stack and waterproofing: [[Mechanical Hub]].
+A **cylinder** (PVC or print) spreads load, fits an auger, and matches the inline PCB. Typical shop pipe ~**50×100 mm** (50×50 mm PCB + 35 mm clearance + 5 mm).. Stack and waterproofing: [[Mechanical Hub]].
 
 Team B delivers SolidWorks printables; Team D renders film from those dimensions only — no new millimetres in Blender.
 

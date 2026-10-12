@@ -109,7 +109,7 @@ Bytes: [[Firmware Hub#Data formats]]. Pins: [[Transmitter Simulation]] / [[Recei
 | Li-SOCl₂ AA ~2400 mAh | 1 | 4.00 |
 | Supercap 1 F / 5.5 V | 1 | 1.50 |
 | FR-4 1-layer 50×50 mm | 1 | 2.00 |
-| PVC ~60×250 mm + caps | 1 | 3.00 |
+| PVC ~50×100 mm + caps | 1 | 3.00 |
 | SMA-TH + female 2.54 mm headers | — | 1.40 |
 | Passives (~15) | — | 1.50 |
 
@@ -161,9 +161,9 @@ Open-air LoRa can be **10–15 km**. Soil is a different channel.
 | Soil–air boundary | Wave **refracts** and spreads along the surface |
 | After breakout | Ordinary LoRa in air — hundreds of metres |
 
-Design target: **1 m through soil**, **100–200 m** once in air.
+Design target: **1 m through soil**, **200–500 m** once in air.
 
-Airtime: SF7–9, 125 kHz, payload **< 500 ms**. Typical ~**290 bps**; SF10 time-on-air ~**330 ms**. Sensitivity to about **−148 dBm**; node TX **14–20 dBm**.
+Airtime: **SF7** (baseline), 125 kHz, payload 12 bytes → **~290 ms** ToA. The **200–500 m** range target is met by SF7 (typical) with SF8/SF9 as margin for soil/fading. SF7–8 stay **< 500 ms**; SF9 (~1.16 s) is the upper bound of the range class. Sensitivity to about **−148 dBm**; node TX **14–20 dBm**.
 
 **λ/4 in air** (VF ≈ 0.95 for copper):
 

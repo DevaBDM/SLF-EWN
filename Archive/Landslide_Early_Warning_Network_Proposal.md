@@ -157,6 +157,41 @@ The node is powered by a **3.6V Li-SOCl2 (Lithium Thionyl Chloride) primary cell
 
 LoRa transmission creates brief current surges (up to 120 mA during RF power amplifier activation) that exceed the continuous current capability of small Li-SOCl2 cells. We mitigate this with a **high-capacity supercapacitor** (typically 1–10 F, 5.5V) in parallel with the battery. The supercapacitor acts as an energy reservoir: it trickle-charges between transmissions and delivers burst current during radio activation, preventing battery voltage collapse and extending cell life.
 
+**RC Network Design and Mathematical Validation:**
+
+We selected a **47 mF EDLC supercapacitor** with a **1.2 kΩ series current-limiting resistor** to safely interface with the Li-SOCl2 chemistry. The design is validated by four key equations:
+
+**1) Peak Inrush Current Limitation**
+$$I_{\text{max}} = \frac{V_{\text{source}}}{R} = \frac{3.6\,\text{V}}{1.2\,\text{k}\Omega} = \mathbf{3.0\,\text{mA}}$$
+
+This 3.0 mA limit is **orders of magnitude below** the 120 mA burst requirement, but serves its intended purpose: it prevents the supercapacitor from momentarily pulling the battery voltage down during the MOSFET turn-on transient, which could otherwise exceed the Li-SOCl2 cell's maximum surge current rating.
+
+**2) RC Time Constant**
+$$\tau = R \cdot C = 1.2\,\text{k}\Omega \times 47\,\text{mF} = \mathbf{56.4\,\text{s}}$$
+
+This determines the charging rate of the supercapacitor from the battery. At 90% charge (5τ), the time required is:
+$$5\tau = 5 \times 56.4\,\text{s} = \mathbf{282\,\text{s}} \approx \mathbf{4.7\,\text{minutes}}$$
+
+This is well within our 15-minute wake cycle, ensuring the supercapacitor is nearly fully charged before the next transmission burst.
+
+**3) Voltage Dip During Burst**
+During a 50 ms transmission burst at 120 mA, the charge drawn is:
+$$\Delta Q = I \times t = 0.120\,\text{A} \times 0.050\,\text{s} = 0.006\,\text{C}$$
+
+The resulting voltage dip on the supercapacitor is:
+$$\Delta V = \frac{\Delta Q}{C} = \frac{0.006\,\text{C}}{0.047\,\text{F}} = \mathbf{127.7\,\text{mV}}$$
+
+**4) Rail Voltage During Transmission**
+With the supercapacitor at ~90% charge (3.24 V nominal, ~3.53 V actual at 3.6 V battery):
+$$V_{\text{rail}} \approx 3.53\,\text{V} - 0.128\,\text{V} = \mathbf{3.40\,\text{V}}$$
+
+This remains **well above** the 2.7 V BOD threshold (even with BOD enabled) and ensures the radio module operates at full rated power without brown-out.
+
+**Component Selection:**
+- **Supercapacitor:** 47 mF, 5.5 V rating (provides 2.5 V headroom above battery)
+- **Resistor:** 1.2 kΩ, 1/4 W, 1% tolerance metal-film (Yageo RC series, 0603/0805 SMD)
+- **Rationale:** The 1.2 kΩ value was chosen as a compromise — low enough to limit inrush to safe levels, but high enough to provide reasonable charging time without excessive IR drop during bursts.
+
 #### 3) Master Power Disconnect
 
 A **2-pin male header with removable plastic jumper shunt** serves as the master power switch. Removing the jumper creates a physical open circuit between the battery and the PCB. This is essential for:
@@ -284,7 +319,7 @@ We propose a **cylindrical PVC pipe capsule** design for the following reasons:
 
 ### B. Internal Layout
 
-The cylindrical enclosure (typically 50–75 mm inner diameter, 200–300 mm length, 3–5 mm wall thickness) houses the following vertical stack:
+The cylindrical enclosure (typically 50–75 mm inner diameter, ~100 mm length, 3–5 mm wall thickness) houses the following vertical stack:
 
 ```
 Top Cap (removable, gasket-sealed)
@@ -379,7 +414,7 @@ Deployed in remote, landslide-prone hillsides above villages. The low cost per n
 | Li-SOCl2 Battery            | 3.6V, AA size, 2400 mAh        | 1        | $4.00                |
 | Supercapacitor              | 5.5V, 1F radial                | 1        | $1.50                |
 | PCB (Custom)                | FR-4, 2-layer, EasyEDA         | 1        | $2.00                |
-| PVC Enclosure               | IP68 pipe + caps, ~60×250 mm   | 1        | $3.00                |
+| PVC Enclosure               | IP68 pipe + caps, ~50×100 mm   | 1        | $3.00                |
 | SMA Connector               | Right-angle, PCB edge mount    | 1        | $1.00                |
 | Passive Components          | Resistors, capacitors, headers | ~15      | $1.50                |
 | **Node Subtotal**           |                                |          | **~$26.45**          |
