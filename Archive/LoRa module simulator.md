@@ -1,77 +1,69 @@
-## Technical Documentation: Subterranean Landslide Node SPI LoRa Radio Simulation
+> **Archived draft.** This note describes the early RFM95W fake radio. The built node uses Ra-02 — see [[Proteus Hub]] and [[Transmitter Simulation]].
 
-This documentation details the architecture, configuration, and validation of the Through-Hole Technology (THT) compliant custom SPI LoRa transmission simulation system designed for a ground-up subterranean early-warning network node.
+# LoRa radio simulation (Proteus)
 
----
+Early notes on the fake SPI LoRa transmitter used in Proteus for the buried node.
 
-## 1. System Overview
+## 1. Overview
 
-Modern wireless telemetry modules (such as the Semtech SX1276-based RFM95W radio module) utilize high-frequency layouts packaged exclusively as compact surface-mount technology (SMT) sub-assemblies. To evaluate the communication subsystem under strict THT physical constraints, a dual-chip architecture was modeled in Proteus.
+Modules such as the Semtech SX1276-based RFM95W are surface-mount assemblies with high-frequency layouts. To test the communication path under the THT-only rule, the radio was modelled with two chips in Proteus.
 
-The primary ATmega328P acts as the SPI Master, formatting and packing real-time environmental data streams. A secondary ATmega328P inside an isolated Proteus subcircuit block serves as an SPI Slave, intercepting data payloads via an active FIFO register command layer (`0x8D`) and reassembling raw SPI stream characters into standard string data over an internal terminal display layer.
+The primary ATmega328P is the SPI master and packs the sensor data. A second ATmega328P inside an isolated subcircuit is the SPI slave. It accepts the 12-byte payload through a FIFO command (`0x8D`) and prints the bytes on its own virtual terminal.
 
----
+## 2. Bus and pin mapping
 
-## 2. Bus Architecture & Pin Mapping
+The two chips share one SPI bus on a power-gated 3.6 V (Li-SOCl₂) rail. Firmware inserts short gaps between bytes so the simulator does not overrun or collide.
 
-The communication system uses a multi-peripheral shared SPI bus layout running off a power-gated 3.6V (Li-SOCl2) network rail. Paced transmission gaps are explicitly hardcoded into the Master MCU's firmware to prevent simulation data overruns or write collisions during data transfers.
+### Wiring
 
-## 📐 Physical Wiring Interconnections
-
-```unset
-[Main ATmega328P - Master]              [Subcircuit Fake LoRa Module - Slave]
+```text
+[Main ATmega328P - Master]              [Subcircuit fake LoRa module - Slave]
 ┌────────────────────────┐              ┌───────────────────────────────────┐
-│         PB5 (SCK/Pin19)├─────────────►│ SCK   (SPI Clock Input)           │
-│        PB3 (MOSI/Pin17)├─────────────►│ MOSI  (Serial Data Input)         │
-│        PB4 (MISO/Pin18)│◄────────────┤ MISO  (Serial Data Output)        │
-│         PB1 (SS/Pin15) ├─────────────►│ NSS   (Active-Low Chip Select)    │
-│         PD3 (INT1/Pin5)│◄────────────┤ DIO0  (Packet Flag Handshake)     │
+│         PB5 (SCK/Pin19)├─────────────►│ SCK   (SPI clock input)           │
+│        PB3 (MOSI/Pin17)├─────────────►│ MOSI  (Serial data input)         │
+│        PB4 (MISO/Pin18)│◄────────────┤ MISO  (Serial data output)        │
+│         PB1 (SS/Pin15) ├─────────────►│ NSS   (Active-low chip select)    │
+│         PD3 (INT1/Pin5)│◄────────────┤ DIO0  (Packet flag handshake)     │
 └────────────────────────┘              └───────────────────────────────────┘
 ```
 
-## 📋 Full Interface Interconnection Routing Table
+### Interface map
 
-|Function|Master Pin (U1)|Subcircuit Terminal|Slave Pin (U2)|Proteus IO Type|
+| Function | Master pin (U1) | Subcircuit terminal | Slave pin (U2) | Proteus I/O |
 |---|---|---|---|---|
-|SPI Clock|Pin 19 (PB5)|`SCK`|Pin 19 (PB5)|INPUT|
-|Master Output|Pin 17 (PB3)|`MOSI`|Pin 17 (PB3)|INPUT|
-|Slave Output|Pin 18 (PB4)|`MISO`|Pin 18 (PB4)|OUTPUT|
-|LoRa NSS Select|Pin 15 (PB1)|`NSS`|Pin 16 (PB2)|INPUT|
-|Transmit Complete|Pin 5 (PD3)|`DIO0`|Pin 4 (PD2)|OUTPUT|
-|Local Debug TXD|—|—|Pin 31 (PD1)|OUTPUT (Wired to Terminal)|
+| SPI clock | Pin 19 (PB5) | `SCK` | Pin 19 (PB5) | INPUT |
+| Master output | Pin 17 (PB3) | `MOSI` | Pin 17 (PB3) | INPUT |
+| Slave output | Pin 18 (PB4) | `MISO` | Pin 18 (PB4) | OUTPUT |
+| LoRa NSS | Pin 15 (PB1) | `NSS` | Pin 16 (PB2) | INPUT |
+| Transmit complete | Pin 5 (PD3) | `DIO0` | Pin 4 (PD2) | OUTPUT |
+| Local debug TXD | — | — | Pin 31 (PD1) | OUTPUT (to terminal) |
 
----
+## 3. Child-sheet terminal
 
-## 3. High-Precision Local Terminal Configuration (Child Sheet)
+The serial engine in the slave is hardware-timed and runs at double speed to clear timing artefacts, baud mismatches, and the `?????` lines that appear when the terminal settings are wrong.
 
-To clear historical timing artifacts, mismatched baud rates, or variable data corruption (`?????` lines) inside the Proteus engine, a double-speed hardware-timed serial engine was integrated into the Slave.
+### Virtual terminal settings
 
-## ⚙️ Virtual Terminal Properties Specification
+- Baud rate: `9600` (`UBRR0L = 103` on the 8 MHz slave core).
+- Data bits: `8`.
+- Parity: `NONE`.
+- Stop bits: `1`.
+- Invert RXD / Invert TXD: `FALSE` / unchecked. Flipping either corrupts the ASCII frame.
 
-Ensure the diagnostic terminal block inside the child sheet matches these parameters exactly:
+### Internal power settings
 
-- Baud Rate: `9600` (Synchronized to `UBRR0L = 103` on the 8MHz slave core)
-- Data Bits: `8`
-- Parity: `NONE`
-- Stop Bits: `1`
-- Invert RXD / Invert TXD: `FALSE` / Unchecked (Flipping this values corrupts the ASCII frame formatting)
+Proteus flags sub-sheets as unpowered before the MOSFET gate turns on. Two settings bypass that:
 
-## ⚡ Critical Internal Power Configuration
+- Chip `U2` property: `VCC=VCC`, so the subcircuit logic keeps running.
+- CKDIV8 fuse: disabled / unprogrammed, so the chip runs at its native 8 MHz internal clock.
 
-To bypass the invisible subcircuit boundary isolation bug where Proteus flags internal sub-sheets as unpowered prior to active MOSFET gating transitions:
+## 4. Telemetry output
 
-- Property String modification: The simulator chip `U2` text field properties must be set to `VCC=VCC` to force continuous logic execution.
-- CKDIV8 Fuse: The "Divide clock by 8" internal fuse is set to Disabled / Unprogrammed to allow the chip to compute instructions at a stable, native 8 MHz internal frequency.
+The payload carries the X, Y, Z registers and the 10-bit ADC soil-moisture reading, formatted as text for the terminal.
 
----
+### Parent sheet terminal (main MCU)
 
-## 4. Telemetry Stream Output & Validation
-
-The telemetry output maps active sensor coordinate registers (X, Y, Z axes) alongside a bare-metal 10-bit analog-to-digital converter checking soil moisture depth variables directly into the streaming radio text format.
-
-## 📬 Parent Sheet Virtual Terminal (Main MCU Diagnostics)
-
-```unset
+```text
 === INTEGRATED ENVIRONMENTAL LANDSLIDE NODE ONLINE ===
 
 --- Starting Sensor Read Session ---
@@ -80,9 +72,9 @@ Forwarding global payload packet to LoRa Transceiver...
 [STATUS] DIO0 Handshake Pin detected HIGH
 ```
 
-## 📬 Child Sheet Virtual Terminal (Fake LoRa Radio Intercept)
+### Child sheet terminal (fake radio)
 
-```unset
+```text
 --- FAKE LORA SIMULATOR ONLINE ---
 Awaiting incoming SPI radio waves from Master Node...
 
@@ -90,10 +82,8 @@ Awaiting incoming SPI radio waves from Master Node...
 [RADIO TX ANT OUT] -> NODE01_DATA:X_0:Y_0:Z_0:MOIST_48%:SEQ_3
 ```
 
----
+## What this validated
 
-## 5. Summary Technical Accomplishments
-
-- Asynchronous Processing: The Fake LoRa state machine samples data inputs using a high-efficiency `SPSR & (1 << SPIF)` flag layout that completely avoids write collisions and data overrun warnings.
-- Paced SPI Serialization: The Master MCU enforces a `_delay_us(250)` padding gap inside character loops, ensuring full synchronization across the shared data highway.
-- Modular Verification: Subcircuit encapsulation keeps the top-level schematic diagram optimized, paving a direct translation path into hardware design suites (such as KiCad or EasyEDA) using the physical 16-pin RFM95W footprints.
+- The fake radio samples `SPSR & (1 << SPIF)` without write collisions or overrun warnings.
+- The master inserts a `_delay_us(250)` gap between bytes, which keeps the shared bus in sync.
+- The subcircuit keeps the top-level schematic readable and maps directly onto a PCB tool using the physical 16-pin RFM95W footprint.

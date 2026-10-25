@@ -99,4 +99,3 @@ UART 115200. Host protocol: [[Firmware Hub#Data formats]].
 Do **not** put a FAT filesystem on the AVR. W25Q64 is a raw page log: [[Firmware Hub#Surface tower]].
 
 **~$15.50.** Antenna **1.5–2 m** up: [[Project Overview#Radio]].
-'''

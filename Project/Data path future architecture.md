@@ -150,7 +150,7 @@ Critical frame RX
 | **Silence command** | New USB/LoRa command (e.g. `'Q'` quiet / silence) from host or handheld acting as supervisor | Clears latched alarm output |
 | **New critical while silenced** | Another `0x80` (or policy event) | **Re-arms** siren (does not stay muted forever after one silence) |
 
-**Rule the user asked for:** if the host is connected in a supervising way, **the host stops the alarm**; if not, the tower **keeps alarming**.
+**Rule we agreed on:** if the host is connected in a supervising way, **the host stops the alarm**; if not, the tower **keeps alarming**.
 
 ### Hardware (tower)
 
@@ -175,7 +175,7 @@ Power: siren may need a **separate** supply or larger pack than the logic rail �
 
 ### Safety language
 
-The siren is a **local attention device**, not a certified life-safety evacuation system (same honesty as [[Mentor readiness]]). Humans still decide response.
+The siren is a **local attention device**, not a certified life-safety evacuation system (same limit as [[Mentor readiness]]). Humans still decide the response.
 
 ## Handheld field device
 
@@ -368,4 +368,3 @@ Current build still validates: nodes → tower RX → flash → **USB → Qt**.
 ## Relation to open issues
 
 Does **not** replace H3/H4/F1 (sleep current, soil RF, `SIM_FAST_WAKE`). Those close the **current** prototype first. This architecture is **Phase 2 data access**, not a redesign of the buried node.
-'''

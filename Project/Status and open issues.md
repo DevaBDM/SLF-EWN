@@ -13,7 +13,7 @@ status: active
 
 # Status and open issues
 
-← [[SLF-EWN Hub]] · Decisions: [[Project Overview#What we decided]] · Sources: [[Code Hub]] · Mentor pack: [[Mentor readiness]] · Plan: [[Phase 2 and Phase 3 plan]]
+← [[SLF-EWN Hub]] · Decisions: [[Project Overview#What we decided]] · Sources: [[Code Hub]] · Feasibility pack: [[Mentor readiness]] · Plan: [[Phase 2 and Phase 3 plan]]
 
 Last reviewed: **2026-10-06**. When code lands a fix, tick the item here and update the matching hub — do not leave a second truth elsewhere.
 
@@ -32,7 +32,7 @@ Last reviewed: **2026-10-06**. When code lands a fix, tick the item here and upd
 | SolidWorks capsule | Specs set · **printables not delivered** |
 | Blender film | Shot list set · **renders not delivered** |
 | Field / soil-barrel test | **Not started** |
-| IEC / mentor feasibility pack | **Documented** — [[Mentor readiness]] · [[Project Overview#IEC standards and feasibility]] |
+| IEC feasibility pack | **Documented** — [[Mentor readiness]] · [[Project Overview#IEC standards and feasibility]] |
 
 ---
 

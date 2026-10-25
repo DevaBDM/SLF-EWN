@@ -1,35 +1,35 @@
-To build the Transmitter PCB using exclusively through-hole technology (THT), you will use the ==RFM95W Breakout Board footprint== as the central component, surrounded by standard through-hole connectors and power stabilization components.
+> **Archived draft.** The radio in this note is the RFM95W breakout. The built board uses Ra-02 on the same 2.54 mm headers — see [[Transmitter PCB]].
 
-Here are the exact components and footprints used for the transmitter PCB design in EasyEDA:
+# Transmitter PCB parts — archived THT list
 
-## 1. The Core Radio Component
+The transmitter was drawn with through-hole parts only. The radio was the RFM95W breakout, with standard THT connectors and the power-stabilisation parts around it.
 
-- The Module: RFM95W Breakout Adapter Board
-- EasyEDA Search Term: `RFM95W Breakout`
-- Why it is used: It adapts the tiny 2.0mm SMD pads of the bare RFM95W chip into two rows of standard 2.54mm through-holes.
+## 1. Radio
 
-## 2. Connectors for Easy Assembly (No Soldering the Module Directly)
+- Part: RFM95W breakout adapter board.
+- EasyEDA search: `RFM95W Breakout`.
+- Reason: it turns the 2.0 mm SMD pads of the bare RFM95W into two rows of 2.54 mm through-holes.
 
-- The Component: 2.54mm Pitch Female Pin Headers
-- EasyEDA Search Term: `HDR-F-2.54` (Select two 1x8 or 1x10 strips depending on the exact breakout board footprint chosen).
-- Why it is used: You solder these female sockets permanently into the PCB. The RFM95W Breakout Board then plugs directly into them. This protects the sensitive radio chip from soldering heat and allows you to swap modules instantly if one gets damaged.
+## 2. Headers
 
-## 3. RF Antenna Interface
+- Part: 2.54 mm female pin headers.
+- EasyEDA search: `HDR-F-2.54` (two 1×8 or 1×10 strips, depending on the breakout footprint).
+- Reason: the female sockets are soldered into the board and the radio plugs into them. That keeps soldering heat away from the radio and allows a module swap.
 
-- The Component: Through-Hole SMA Female Connector (90-degree Right Angle or Straight)
-- EasyEDA Search Term: `SMA-TH` or `SMA-JW-P`
-- Why it is used: It has 5 robust through-hole pins (1 central signal pin and 4 outer chassis ground legs). It solders directly into the edge of your PCB so you can screw on a standard, high-gain LoRa rubber-duck antenna.
+## 3. Antenna connector
 
-## 4. Power Stabilization Components (Critical for Battery Operation)
+- Part: through-hole SMA female, right-angle or straight.
+- EasyEDA search: `SMA-TH` or `SMA-JW-P`.
+- Reason: five through-hole pins (one centre signal, four chassis ground legs). It sits on the board edge and accepts a standard LoRa whip.
 
-Because a LoRa transmitter draws brief, heavy spikes of current (up to 120mA) when sending a packet, you must place these components right next to the VCC pin of the radio header to prevent voltage drops from crashing your board:
+## 4. Power stabilisation
 
-- Electrolytic Capacitor (Through-hole Radial): 10µF to 100µF Capacitor (EasyEDA Search: `CAP-TH` or `Capacitor Radial`).
-- Ceramic Capacitor (Through-hole Disc): 0.1µF Capacitor (EasyEDA Search: `C-DIAL` or `Capacitor Ceramic Disc`) to filter high-frequency noise. [1]
+A LoRa transmitter pulls brief current spikes of up to 120 mA when it sends. These parts sit next to the radio VCC pin so the rail does not collapse:
 
----
+- Electrolytic capacitor, through-hole radial: 10–100 µF (`CAP-TH` or `Capacitor Radial`).
+- Ceramic capacitor, through-hole disc: 0.1 µF (`C-DIAL` or `Capacitor Ceramic Disc`) for high-frequency noise.
 
-## Layout Checklist for your EasyEDA PCB:
+## 5. Layout checklist
 
-1. Keep the trace between the RFM95W "ANT" pin and the SMA connector's central pin as short and straight as possible to prevent signal loss.
-2. Create a large GND copper pour (Ground Plane) on both the top and bottom layers of your PCB to ensure a stable radio ground reference. [2, 3]
+1. Keep the trace from the RFM95W `ANT` pin to the SMA centre pin short and straight.
+2. Use a ground pour where the single copper layer allows; bridge crossings with jumpers or a top-side solder blob, not a second layer.

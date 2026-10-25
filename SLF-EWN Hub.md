@@ -37,7 +37,7 @@ artifacts/
 ├── Project/
 │   ├── Project Overview.md     decisions, BOM, team, constraints, IEC
 │   ├── Full Proposal.md        formal write-up
-│   ├── Mentor readiness.md     feasibility FAQ for mentor questions
+│   ├── Mentor readiness.md     feasibility and standards notes
 │   └── Status and open issues.md
 ├── SOLIDWORKS/
 │   └── Mechanical Hub.md       capsule + film (canonical)
@@ -55,8 +55,8 @@ artifacts/
 | Copper / BOM photos | [[Transmitter PCB]] · [[Receiver PCB]] |
 | Qt UI / map / Places | [[Dashboard Hub]] |
 | Decisions / BOM / radio / team | [[Project Overview]] |
-| IEC feasibility (mentor) | [[Project Overview#IEC standards and feasibility]] · [[Full Proposal#7.3 IEC standards and feasibility]] |
-| Mentor readiness pack (FAQ) | [[Mentor readiness]] |
+| IEC feasibility (review) | [[Project Overview#IEC standards and feasibility]] · [[Full Proposal#7.3 IEC standards and feasibility]] |
+| Feasibility notes (FAQ) | [[Mentor readiness]] |
 | Phase-2 data paths (LoRa backhaul, handheld) | [[Data path future architecture]] |
 | Phase 2 / 3 fine-grained plan | [[Phase 2 and Phase 3 plan]] |
 | Capsule mm + film shots | [[Mechanical Hub]] |
@@ -149,7 +149,7 @@ Full maps: [[Transmitter Simulation]] · [[Receiver Simulation]]. Must match `Co
 
 ## Open a hub
 
-| You are working on | Open |
+| Working on | Open |
 |:-------------------|:-----|
 | Formats, WDT, status bits | [[Firmware Hub]] |
 | Source tree / build / APIs | [[Code Hub]] |
@@ -159,7 +159,7 @@ Full maps: [[Transmitter Simulation]] · [[Receiver Simulation]]. Must match `Co
 | Capsule + film | [[Mechanical Hub]] |
 | Decisions / BOM / team | [[Project Overview]] |
 | Formal write-up | [[Full Proposal]] |
-| Challenges / math for mentor | [[Challenges and Solutions]] |
+| Challenges / design math | [[Challenges and Solutions]] |
 | Phase / open issues | [[Status and open issues]] |
 
 ---

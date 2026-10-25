@@ -61,7 +61,7 @@ Stands in for FT232RL USB-to-serial chip on the production PCB.
 
 16 MHz crystal + 2× 22 pF load caps. 10 kΩ RESET pull-up. 100 kΩ on `RADIO_CS` and `FLASH_CS`. 10 µF + 100 nF on USB 5 V rail. 100 nF AREF.
 
-On production PCB, both links are 3.3 V and go through an FT232RL. Proteus uses two independent COMPIMs at 5 V (logic tolerates it). Remove the LM1117 3V3 regulator if you substitute real 3.3 V radio and flash parts in hardware.
+On production PCB, both links are 3.3 V and go through an FT232RL. Proteus uses two independent COMPIMs at 5 V (logic tolerates it). Remove the LM1117 3V3 regulator when real 3.3 V radio and flash parts are substituted in hardware.
 
 ---
 

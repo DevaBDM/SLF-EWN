@@ -86,7 +86,7 @@ The login screen is the session gate. The following default accounts are pre-see
 | `admin` | `admin` | Full control (thresholds, serial config, acknowledge alerts, user management) |
 | `guest` | `guest` | Live view only (read-only dashboard and map) |
 
-You may also click **Continue as Guest** without entering a password.
+Click **Continue as Guest** to sign in without entering a password.
 
 > **Security Notice:** Change the default admin password immediately after first login. Settings → **ACCESS** will display a warning banner while the default password is still in use.
 
@@ -98,9 +98,9 @@ You may also click **Continue as Guest** without entering a password.
 
 1. **Sign in** with admin or guest credentials.
 2. **Connect the tower receiver** via USB. The dashboard auto-opens the preferred USB-UART port. The top status bar should display the port name (e.g., `COM5` or `/dev/ttyUSB0`), not `SIMULATION`.
-3. **Select a port manually** from the serial bar in the sidebar if auto-connect does not match your receiver, or open Settings → **LINK** to pick the port and click **Connect**.
+3. **Select a port manually** from the serial bar in the sidebar if auto-connect does not match the receiver, or open Settings → **LINK** to pick the port and click **Connect**.
 4. **Monitor node cards** on the dashboard grid. Each card shows live moisture, tilt magnitude, a mini sparkline, and a status badge.
-5. **Click a node card** to open the **Detail Panel**, where you can:
+5. **Click a node card** to open the **Detail Panel**, which provides:
    - Acknowledge active alerts for that node
    - Edit the zone label
    - View history charts (24 h / 7 d / 30 d)

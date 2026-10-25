@@ -1,69 +1,60 @@
-Got it! Using the ATmega328P on the receiver side is completely doable, even for storing data.
+> **Archived draft.** This is the earlier MicroSD / RFM95W version of the receiver. The built tower uses W25Q64 and Ra-02 — see [[Receiver PCB]] and [[Firmware Hub]].
 
-Because the ATmega328P's internal memory (EEPROM) is too small to store a database of logs from 5+ devices, you just need to add one extra through-hole component to your receiver PCB: a Through-Hole MicroSD Card Module or an external I2C EEPROM chip. This allows the ATmega328P to act as the master controller, log data 24/7 to the storage component, and dump it over USB when a computer connects. [1]
+# Receiver connections — archived THT plan
 
-Here is the complete hardware and connection plan for your Through-Hole (THT) Receiver PCB in EasyEDA.
+The ATmega328P is enough to run the receiver and log data. Its internal EEPROM is too small for a multi-node history, so this draft added one extra through-hole part to the receiver board: a THT MicroSD card module or an external I2C EEPROM. The ATmega328P stays the master, logs continuously, and dumps over USB when a computer connects.
 
----
+## 1. Core parts for the receiver PCB
 
-## 1. Core Components for the Receiver PCB (EasyEDA Layout)
-
-|Component Function|Component Name|EasyEDA Library Search Keyword|Mounting Style|
+| Function | Part | EasyEDA search | Mount |
 |---|---|---|---|
-|Main Controller|ATmega328P-PU (DIP-28 chip)|`ATMEGA328P-PU`|28-Pin DIP IC Socket|
-|Radio Receiver|RFM95W Breakout Adapter Board|`RFM95W Breakout`|Through-Hole Header (2.54mm)|
-|The Database / Storage|MicroSD Card SPI Module (THT)|`MicroSD Card Module`|Through-Hole Header (2.54mm)|
-|PC USB Interface|FTDI FT232RL USB-to-Serial Board|`FT232RL Module` or `FTDI Breakout`|Through-Hole Header (2.54mm)|
-|Antenna Port|Through-Hole SMA Female Connector|`SMA-TH` or `SMA-JW-P`|Through-Hole 5-Pin Jack|
+| Main controller | ATmega328P-PU (DIP-28) | `ATMEGA328P-PU` | 28-pin DIP socket |
+| Radio receiver | RFM95W breakout | `RFM95W Breakout` | 2.54 mm through-hole header |
+| Storage | MicroSD card SPI module (THT) | `MicroSD Card Module` | 2.54 mm through-hole header |
+| USB interface | FTDI FT232RL USB-to-serial board | `FT232RL Module` or `FTDI Breakout` | 2.54 mm through-hole header |
+| Antenna | Through-hole SMA female | `SMA-TH` or `SMA-JW-P` | 5-pin THT jack |
 
-_Design Note:_ Just like the transmitter, do not solder the ATmega328P or the modules directly. Solder standard female header strips (`HDR-F-2.54`) and a DIP-28 socket to the PCB so everything can be plugged in easily.
+As on the transmitter, the ATmega328P and the modules are not soldered directly. Solder female header strips (`HDR-F-2.54`) and a DIP-28 socket so everything can be plugged in.
 
----
+## 2. THT connections
 
-## 2. THT Schematic Pin Connections (EasyEDA Routing)
+The ATmega328P, RFM95W, and MicroSD module share the SPI bus. The MCU uses separate chip-select pins to address them one at a time.
 
-Since the ATmega328P, the RFM95W, and the MicroSD card module all use the SPI communication bus, they will share the exact same data lines. The ATmega328P will use separate "Chip Select" pins to talk to them individually. [2]
+### A. Power
 
-## A. Power Infrastructure
+The FTDI module takes 5 V from the PC. That feeds an LM1117-3.3 in a TO-220 through-hole package, because the RFM95W and MicroSD card need 3.3 V.
 
-The FTDI USB module plugs into the PC and provides 5V power. You will route this to a 3.3V through-hole voltage regulator (like an `LM1117-3.3` in a TO-220 through-hole package) because the RFM95W and MicroSD card require 3.3V. [3, 4]
+- 3.3 V rail: ATmega328P pin 7, RFM95W VCC, MicroSD VCC.
+- Ground: ATmega328P pins 8 and 22, RFM95W GND, MicroSD GND, FTDI GND, SMA ground legs.
 
-- VCC (3.3V Rail): Connect to ATmega328P Pin 7, RFM95W VCC, and MicroSD VCC.
-- GND Rail: Connect to ATmega328P Pins 8 & 22, RFM95W GND, MicroSD GND, FTDI GND, and SMA Connector Ground legs.
+### B. Shared SPI bus
 
-## B. The Shared SPI Data Bus
+- ATmega328P pin 17 (MOSI) → RFM95W MOSI and MicroSD MOSI.
+- ATmega328P pin 18 (MISO) → RFM95W MISO and MicroSD MISO.
+- ATmega328P pin 19 (SCK) → RFM95W SCK and MicroSD SCK.
 
-- ATmega328P Pin 17 (MOSI) → Connect to both RFM95W MOSI and MicroSD MOSI.
-- ATmega328P Pin 18 (MISO) → Connect to both RFM95W MISO and MicroSD MISO.
-- ATmega328P Pin 19 (SCK) → Connect to both RFM95W SCK and MicroSD SCK.
+### C. Control and interrupt lines
 
-## C. Dedicated Control & Interrupt Lines
+- ATmega328P pin 14 (digital 8) → RFM95W NSS (radio chip select).
+- ATmega328P pin 15 (digital 9) → MicroSD CS (storage chip select).
+- ATmega328P pin 4 (digital 2 / INT0) → RFM95W DIO0. The radio pulls this to make the MCU stop and save the incoming packet.
+- ATmega328P pin 1 (RESET) → 10 kΩ to 3.3 V.
 
-- ATmega328P Pin 14 (Digital 8) → Connect to RFM95W NSS (Radio Chip Select).
-- ATmega328P Pin 15 (Digital 9) → Connect to MicroSD CS (Storage Chip Select).
-- ATmega328P Pin 4 (Digital 2 / INT0) → Connect to RFM95W DIO0. (Critical Interrupt). This pin forces the ATmega328P to stop what it is doing and instantly save the incoming LoRa packet to the SD card database.
-- ATmega328P Pin 1 (RESET) → Connect a 10kΩ through-hole resistor from this pin to the 3.3V VCC rail to keep the MCU stable.
+### D. USB serial link
 
-## D. The USB-to-PC Connection (Serial Link)
+- ATmega328P pin 2 (RXD) → FTDI TX.
+- ATmega328P pin 3 (TXD) → FTDI RX.
 
-- ATmega328P Pin 2 (RXD) → Connect to FTDI Module TX.
-- ATmega328P Pin 3 (TXD) → Connect to FTDI Module RX.
+## 3. Behaviour
 
----
+1. **PC disconnected.** The receiver runs continuously. When a node transmits, the RFM95W raises DIO0 on pin 4. The ATmega328P appends a line to a text/CSV file on the MicroSD card with the sensor value, timestamp, and node ID.
+2. **PC connected.** The dashboard sends a trigger over serial. The ATmega328P reads the CSV file line by line from the MicroSD card and sends it over USB.
 
-## 3. How the Receiver PCB Behaves in This Setup
+## 4. Node identity and storage
 
-1. Standalone Mode (PC Disconnected): The tower receiver runs continuously. When a sensor node sends data, the RFM95W wakes up the ATmega328P via Pin 4 (DIO0). The ATmega328P opens a text or CSV file on the MicroSD card (acting as your database) and appends a new line with the sensor data, timestamp, and node ID.
-2. Dashboard Sync Mode (PC Connected): When you turn on your desktop/PC and connect the USB cable to the FTDI module, your desktop software sends a trigger command over the Serial connection. The ATmega328P reads the CSV database file line-by-line from the MicroSD card and dumps it straight through the USB cable to your dashboard software.
+Each transmitter gets a unique node ID (`1`, `2`, `3`, …) in firmware. The ID sits at the start of every radio message, so the receiver can store each reading under the right node.
 
-
-## 1. How the ATmega328P Knows Who is Talking
-
-In your code, you will assign a unique Node ID number (like `1`, `2`, `3`, etc.) to each transmitter. When a transmitter sends data, it includes its ID at the beginning of the radio message. The ATmega328P reads that ID and saves it to the MicroSD card database alongside the sensor value. [1]
-
-## 2. How it Handles Data Storage
-
-The MicroSD card functions like a giant spreadsheet. Whenever any transmitter sends a message, the ATmega328P simply appends a new row to a `.csv` text file on the card:
+The MicroSD card behaves like a large table. Every message appends a row:
 
 ```text
 Timestamp, Node_ID, Sensor_Value
@@ -72,14 +63,16 @@ Timestamp, Node_ID, Sensor_Value
 14:02:30,  2,       22.9
 ```
 
-Because MicroSD cards have gigabytes of storage, this single receiver can store millions of readings from dozens of different transmitters for years.
+A card of a few gigabytes holds millions of readings from dozens of transmitters.
 
-## 3. The One Software Rule You Must Follow
+## 5. Collision rule
 
-Since the receiver only has one RFM95W radio module, it can only listen to one transmitter at a single millisecond. If two of your 5+ transmitters talk at the exact same instant, their signals will clash (collide), and the receiver won't hear either one.
+The receiver has one radio, so it demodulates one packet at a time. If two nodes transmit at the same instant, both frames collide and neither is heard.
 
-To prevent this with an ATmega328P receiver, you must use Time-Division in your transmitter code.
+The transmitters therefore use time division:
 
-- Do not have your transmitters send data continuously.
-- Have them sleep, wake up quickly, send their data packet (which only takes a few milliseconds), and go back to sleep.
-- Add a random small delay (jitter) of a few seconds to each transmitter's timer so they naturally stay out of each other's way and never transmit at the exact same moment.
+- Do not transmit continuously.
+- Sleep, wake quickly, send the packet, and go back to sleep.
+- Add a small jitter delay based on the node ID so wakes drift apart instead of lining up.
+
+The final design keeps this rule but replaces the MicroSD card with W25Q64 and the RFM95W with Ra-02.

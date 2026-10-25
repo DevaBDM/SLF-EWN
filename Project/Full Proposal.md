@@ -214,7 +214,7 @@ TX sheet at **3.6 V**, RX at **5 V**. Fake ADXL345 and Ra-02 are child ATmega328
 
 ### 7.3 IEC standards and feasibility
 
-**Mentor feasibility check.** The architecture is **feasible** under normal IEC practice: it does not conflict with the main families used for outdoor and environmental electronics. Feasibility means the approach is *designable within those frameworks*, not that accredited certificates are already in hand.
+**Feasibility check.** The architecture is **feasible** under normal IEC practice: it does not conflict with the main families used for outdoor and environmental electronics. Feasible means the approach is *designable within those frameworks*, not that accredited certificates are already in hand.
 
 **Statement.** A sealed, battery-powered subsurface node with short-range sub-GHz radio and a surface acquisition unit falls within established scopes for ingress protection (**IEC 60529**), environmental testing (**IEC 60068**), EMC (**IEC 61000** series), ICT safety (**IEC 62368-1**), and primary batteries (**IEC 60086**). Operation on 433 MHz is governed by spectrum regulation (typically ETSI / national short-range device rules), not by an IEC prohibition. Landslide early-warning *process* guidance is **ISO 22327** / **ISO 22328** (complementary, not IEC electrical).
 
@@ -229,7 +229,7 @@ TX sheet at **3.6 V**, RX at **5 V**. Fake ADXL345 and Ra-02 are child ATmega328
 **Out of prototype scope unless formally claimed:** IEC 61508 functional-safety SIL. Full product compliance requires laboratory testing after the research prototype; this build designs *toward* the standards above and validates seals, sleep current, and RF path by measurement.
 
 Full tables and mapping: [[Project Overview#IEC standards and feasibility]].  
-Mentor-oriented pack (spectrum, safety language, cost, power/RF proof status, FAQ): [[Mentor readiness]].
+Feasibility notes (spectrum, safety language, cost, power/RF proof status, FAQ): [[Mentor readiness]].
 
 ---
 

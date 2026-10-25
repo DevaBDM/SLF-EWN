@@ -1,114 +1,102 @@
-> **As-built:** ADXL345. LIS3DH pinout below is reference only (future drop-in).
+> **As-built:** ADXL345. The LIS3DH pinout is kept for reference only (future drop-in).
 
-The ADXL345 features a 14-lead configuration. The complete list of pins and their descriptions from the technical data sheet is detailed below:
+# Device pinouts
 
-- Pin 1 (VDD I/O): Digital Interface Supply Voltage
-- Pin 2 (GND): Must be connected to ground
-- Pin 3 (Reserved): Reserved, must be connected to $V_S$ or left open
-- Pin 4 (GND): Must be connected to ground
-- Pin 5 (GND): Must be connected to ground
-- Pin 6 (VS): Supply Voltage
-- Pin 7 (CS): Chip Select
-- Pin 8 (INT1): Interrupt 1 Output
-- Pin 9 (INT2): Interrupt 2 Output
-- Pin 10 (GND): Must be connected to ground
-- Pin 11 (Reserved): Reserved, must be connected to GND or left open
-- Pin 12 (SDO/ALT ADDRESS): Serial Data Out, Alternate I²C Address Select
-- Pin 13 (SDA/SDI/SDIO): Serial Data (I²C), Serial Data In (SPI 4-Wire), Serial Data In/Out (SPI 3-Wire)
-- Pin 14 (SCL/SCLK): Serial Communications Clock
+Pin references taken from the datasheets while drawing the schematics. Signal names are the datasheet names, not the net labels used on the board.
 
-The LIS3DH features a 16-lead LGA configuration (pp. 1, 9). The complete list of pins and their functions from the technical data sheet is detailed below (p. 9):
+## ADXL345 (14-lead)
 
-- Pin 1 (Vdd_IO): Power supply for I/O pins (p. 9)
-- Pin 2 (NC): Not connected (p. 9)
-- Pin 3 (NC): Not connected (p. 9)
-- Pin 4 (SCL/SPC): I²C serial clock (SCL) / SPI serial port clock (SPC) (p. 9)
-- Pin 5 (GND): 0V supply (p. 9)
-- Pin 6 (SDA/SDI/SDO): I²C serial data (SDA) / SPI serial data input (SDI) / 3-wire interface serial data output (SDO) (p. 9)
-- Pin 7 (SDO/SA0): SPI serial data output (SDO) / I²C less significant bit of the device address (SA0) (p. 9)
-- Pin 8 (CS): SPI enable / I²C/SPI mode selection (1: I²C mode; 0: SPI enabled) (p. 9)
-- Pin 9 (INT2): Inertial interrupt 2 (p. 9)
-- Pin 10 (RES): Connect to GND (p. 9)
-- Pin 11 (INT1): Inertial interrupt 1 (p. 9)
-- Pin 12 (GND): 0V supply (p. 9)
-- Pin 13 (ADC3): Analog to digital converter input 3 (p. 9)
-- Pin 14 (Vdd): Power supply (p. 9)
-- Pin 15 (ADC2): Analog to digital converter input 2 (p. 9)
-- Pin 16 (ADC1): Analog to digital converter input 1 (p. 9)
+| Pin | Name | Function |
+|:---:|:-----|:---------|
+| 1 | VDD I/O | Digital interface supply |
+| 2 | GND | Ground |
+| 3 | Reserved | Connect to $V_S$ or leave open |
+| 4 | GND | Ground |
+| 5 | GND | Ground |
+| 6 | VS | Supply voltage |
+| 7 | CS | Chip select |
+| 8 | INT1 | Interrupt 1 output |
+| 9 | INT2 | Interrupt 2 output |
+| 10 | GND | Ground |
+| 11 | Reserved | Connect to GND or leave open |
+| 12 | SDO / ALT ADDRESS | Serial data out; I²C alternate address select |
+| 13 | SDA / SDI / SDIO | I²C data; SPI data in (4-wire); SPI data in/out (3-wire) |
+| 14 | SCL / SCLK | Serial communications clock |
 
-The W25Q64BV serial flash memory is available in standard 8-pin configurations (SOIC 208-mil, PDIP 300-mil, WSON 8x6-mm) as well as a 16-pin SOIC 300-mil configuration. Both layouts from the technical data sheet are detailed below:
+## LIS3DH (16-lead LGA) — reference only
 
-## 8-Pin Packages (SOIC-8, PDIP-8, WSON-8)
+| Pin | Name | Function |
+|:---:|:-----|:---------|
+| 1 | Vdd_IO | Supply for I/O pins |
+| 2 | NC | Not connected |
+| 3 | NC | Not connected |
+| 4 | SCL / SPC | I²C clock / SPI clock |
+| 5 | GND | 0 V supply |
+| 6 | SDA / SDI / SDO | I²C data / SPI data in / 3-wire data out |
+| 7 | SDO / SA0 | SPI data out / I²C address LSB |
+| 8 | CS | SPI enable (low = SPI); I²C/SPI mode select |
+| 9 | INT2 | Inertial interrupt 2 |
+| 10 | RES | Connect to GND |
+| 11 | INT1 | Inertial interrupt 1 |
+| 12 | GND | 0 V supply |
+| 13 | ADC3 | ADC input 3 |
+| 14 | Vdd | Supply |
+| 15 | ADC2 | ADC input 2 |
+| 16 | ADC1 | ADC input 1 |
 
-- Pin 1 (/CS): Chip Select Input
-- Pin 2 (DO / IO1): Data Output (Data Input Output 1 for Dual/Quad SPI)
-- Pin 3 (/WP / IO2): Write Protect Input (Data Input Output 2 for Quad SPI)
-- Pin 4 (GND): Ground
-- Pin 5 (DI / IO0): Data Input (Data Input Output 0 for Dual/Quad SPI)
-- Pin 6 (CLK): Serial Clock Input
-- Pin 7 (/HOLD / IO3): Hold Input (Data Input Output 3 for Quad SPI)
-- Pin 8 (VCC): Power Supply
+## W25Q64 (8-pin SOIC / PDIP / WSON)
 
----
+| Pin | Name | Function |
+|:---:|:-----|:---------|
+| 1 | /CS | Chip select input |
+| 2 | DO / IO1 | Data output (dual/quad SPI IO1) |
+| 3 | /WP / IO2 | Write protect (dual/quad SPI IO2) |
+| 4 | GND | Ground |
+| 5 | DI / IO0 | Data input (dual/quad SPI IO0) |
+| 6 | CLK | Serial clock |
+| 7 | /HOLD / IO3 | Hold (dual/quad SPI IO3) |
+| 8 | VCC | Supply |
 
-## 16-Pin Package (SOIC-16)
+### W25Q64 (16-pin SOIC)
 
-- Pin 1 (/HOLD / IO3): Hold Input (Data Input Output 3 for Quad SPI)
-- Pin 2 (VCC): Power Supply
-- Pin 3 (N/C): No Connect
-- Pin 4 (N/C): No Connect
-- Pin 5 (N/C): No Connect
-- Pin 6 (N/C): No Connect
-- Pin 7 (/CS): Chip Select Input
-- Pin 8 (DO / IO1): Data Output (Data Input Output 1 for Dual/Quad SPI)
-- Pin 9 (/WP / IO2): Write Protect Input (Data Input Output 2 for Quad SPI)
-- Pin 10 (GND): Ground
-- Pin 11 (N/C): No Connect
-- Pin 12 (N/C): No Connect
-- Pin 13 (N/C): No Connect
-- Pin 14 (N/C): No Connect
-- Pin 15 (DI / IO0): Data Input (Data Input Output 0 for Dual/Quad SPI)
-- Pin 16 (CLK): Serial Clock Input
+| Pin | Name | Function |
+|:---:|:-----|:---------|
+| 1 | /HOLD / IO3 | Hold (dual/quad SPI IO3) |
+| 2 | VCC | Supply |
+| 3 | N/C | No connect |
+| 4 | N/C | No connect |
+| 5 | N/C | No connect |
+| 6 | N/C | No connect |
+| 7 | /CS | Chip select input |
+| 8 | DO / IO1 | Data output (dual/quad SPI IO1) |
+| 9 | /WP / IO2 | Write protect (dual/quad SPI IO2) |
+| 10 | GND | Ground |
+| 11 | N/C | No connect |
+| 12 | N/C | No connect |
+| 13 | N/C | No connect |
+| 14 | N/C | No connect |
+| 15 | DI / IO0 | Data input (dual/quad SPI IO0) |
+| 16 | CLK | Serial clock |
 
-The Ai-Thinker Ra-01 and Ra-02 LoRa modules are built using the same core layout, but they differ slightly on Pins 1 and 2 to accommodate the different antenna configurations (Ra-01 uses a spring/wire antenna pad, while Ra-02 features an onboard IPEX connector).
-Here is the complete pinout configuration for both modules from the technical manual:
+## Ra-01 and Ra-02 (Ai-Thinker)
 
-## Ra-01 Module Pinout
+The two modules share the same pin order. They differ on pins 1 and 2 because Ra-01 uses a spring/wire antenna pad and Ra-02 uses an IPEX connector.
 
-- Pin 1 (ANT): Antenna connection pad
-- Pin 2 (GND): Ground
-- Pin 3 (3.3V): 3.3V Power Supply
-- Pin 4 (RESET): Device Reset
-- Pin 5 (DIO0): Digital I/O 0 (Configurable)
-- Pin 6 (DIO1): Digital I/O 1 (Configurable)
-- Pin 7 (DIO2): Digital I/O 2 (Configurable)
-- Pin 8 (DIO3): Digital I/O 3 (Configurable)
-- Pin 9 (GND): Ground
-- Pin 10 (DIO4): Digital I/O 4 (Configurable)
-- Pin 11 (DIO5): Digital I/O 5 (Configurable)
-- Pin 12 (SCK): SPI Clock Input
-- Pin 13 (MISO): SPI Data Output
-- Pin 14 (MOSI): SPI Data Input
-- Pin 15 (NSS): SPI Chip Select Input
-- Pin 16 (GND): Ground
-
----
-
-## Ra-02 Module Pinout
-
-- Pin 1 (GND): Ground
-- Pin 2 (GND): Ground
-- Pin 3 (3.3V): 3.3V Power Supply
-- Pin 4 (RESET): Device Reset
-- Pin 5 (DIO0): Digital I/O 0 (Configurable)
-- Pin 6 (DIO1): Digital I/O 1 (Configurable)
-- Pin 7 (DIO2): Digital I/O 2 (Configurable)
-- Pin 8 (DIO3): Digital I/O 3 (Configurable)
-- Pin 9 (GND): Ground
-- Pin 10 (DIO4): Digital I/O 4 (Configurable)
-- Pin 11 (DIO5): Digital I/O 5 (Configurable)
-- Pin 12 (SCK): SPI Clock Input
-- Pin 13 (MISO): SPI Data Output
-- Pin 14 (MOSI): SPI Data Input
-- Pin 15 (NSS): SPI Chip Select Input
-- Pin 16 (GND): Ground
+| Pin | Ra-01 | Ra-02 | Function |
+|:---:|:------|:------|:---------|
+| 1 | ANT | GND | Antenna pad (Ra-01) / ground (Ra-02) |
+| 2 | GND | GND | Ground |
+| 3 | 3.3V | 3.3V | 3.3 V supply |
+| 4 | RESET | RESET | Device reset |
+| 5 | DIO0 | DIO0 | Digital I/O 0 |
+| 6 | DIO1 | DIO1 | Digital I/O 1 |
+| 7 | DIO2 | DIO2 | Digital I/O 2 |
+| 8 | DIO3 | DIO3 | Digital I/O 3 |
+| 9 | GND | GND | Ground |
+| 10 | DIO4 | DIO4 | Digital I/O 4 |
+| 11 | DIO5 | DIO5 | Digital I/O 5 |
+| 12 | SCK | SCK | SPI clock |
+| 13 | MISO | MISO | SPI data out |
+| 14 | MOSI | MOSI | SPI data in |
+| 15 | NSS | NSS | SPI chip select |
+| 16 | GND | GND | Ground |

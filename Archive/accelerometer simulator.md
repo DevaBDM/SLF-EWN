@@ -1,86 +1,78 @@
-## Technical Documentation: Subterranean Landslide Node SPI Accelerometer Simulation
+> **Archived draft.** This note describes the early LIS3DH fake accelerometer. The built node uses ADXL345 — see [[Proteus Hub]] and [[Transmitter Simulation]].
 
-This documentation details the successful implementation, architecture, and validation of the Through-Hole Technology (THT) compliant 3-axis accelerometer simulation system designed for a ground-up subterranean landslide warning network node.
+# Accelerometer simulation (Proteus)
 
----
+Early notes on the fake 3-axis accelerometer used in Proteus for the buried node.
 
-## 1. System Overview
+## 1. Overview
 
-Due to physical constraints—primarily that modern MEMS digital accelerometers (such as the STMicroelectronics LIS3DH) are manufactured exclusively in surface-mount (SMD) packages (e.g., LGA-16)—a dual-chip prototyping strategy was developed for verification in Proteus.
+MEMS digital accelerometers such as the STMicroelectronics LIS3DH only come in surface-mount packages (LGA-16). To test the firmware under the THT-only rule before the board existed, the sensor was modelled with two chips in Proteus.
 
-A primary ATmega328P operates as the SPI Master, while a secondary ATmega328P within an isolated Proteus subcircuit acts as an SPI Slave, accurately mimicking the hardware registers, response codes, and timing criteria of a physical LIS3DH sensor over an SPI bus in Mode 3.
+A primary ATmega328P is the SPI master. A second ATmega328P, inside an isolated Proteus subcircuit, is the SPI slave. It reproduces the LIS3DH register map, response bytes, and timing over SPI Mode 3.
 
----
+## 2. Bus and pin mapping
 
-## 2. Bus Architecture & Pin Mapping
+The two chips share one SPI bus at 3.6 V (Li-SOCl₂). Power gating is included so the simulation matches the 3–7 year battery target: a P-channel MOSFET switches the sensor rail from a bare-metal GPIO.
 
-The system relies on a unified, shared SPI bus architecture operating at a system voltage of 3.6V (Li-SOCl2). To ensure an optimized power footprint matching the 3-to-7 year battery longevity goal, the system includes power-gating controlled by a bare-metal driven P-channel MOSFET.
+### Wiring
 
-## 📐 Physical Wiring Interconnections
-
-```unset
-[Main ATmega328P - Master]              [Subcircuit Fake Accelerometer - Slave]
+```text
+[Main ATmega328P - Master]              [Subcircuit fake accelerometer - Slave]
 ┌────────────────────────┐              ┌─────────────────────────────────────┐
-│          PB5 (SCK/Pin19)├─────────────►│ SCL / SPC (SPI Clock Input)         │
-│         PB3 (MOSI/Pin17)├─────────────►│ SDA / SDI (Serial Data Input)       │
-│         PB4 (MISO/Pin18)│◄────────────┤ SDO (Serial Data Output)            │
-│          PB1 (SS/Pin15) ├─────────────►│ CS (Active-Low Chip Select)         │
-│         PD2 (INT0/Pin4) │◄────────────┤ INT1 (Primary Interrupt Output)     │
+│          PB5 (SCK/Pin19)├─────────────►│ SCL / SPC (SPI clock input)         │
+│         PB3 (MOSI/Pin17)├─────────────►│ SDA / SDI (Serial data input)       │
+│         PB4 (MISO/Pin18)│◄────────────┤ SDO (Serial data output)            │
+│          PB1 (SS/Pin15) ├─────────────►│ CS (Active-low chip select)         │
+│         PD2 (INT0/Pin4) │◄────────────┤ INT1 (Interrupt output)             │
 │         PB0 (GPIO/Pin14)├┐            │                                     │
 └────────────────────────┘│             └─────────────────────────────────────┘
                           │             ┌─────────────────────────────────────┐
-                          └────────────►│ Source -> Gate [ZVP2106A P-MOSFET]  │
+                          └────────────►│ Source -> gate [ZVP2106A P-MOSFET]  │
                                         └─────────────────────────────────────┘
 ```
 
-## 📋 Full Interface Interconnection Register Map
+### Interface map
 
-|Function|Master Pin (U1)|Subcircuit Terminal|Slave Pin (U3)|Functional Mode|
+| Function | Master pin (U1) | Subcircuit terminal | Slave pin (U3) | Mode |
 |---|---|---|---|---|
-|SPI Clock|Pin 19 (PB5)|`SCL`|Pin 19 (PB5)|Master Out / Slave In|
-|Master Output|Pin 17 (PB3)|`SDA`|Pin 17 (PB3)|Master Out / Slave In|
-|Slave Output|Pin 18 (PB4)|`SDO`|Pin 18 (PB4)|Slave Out / Master In|
-|Chip Select|Pin 15 (PB1)|`CS`|Pin 16 (PB2)|Active-Low Pulse Gate|
-|Hardware Alarm|Pin 4 (PD2)|`INT1`|Pin 4 (PD2)|Active-Low Interrupt|
-|Power Gate|Pin 14 (PB0)|—|VCC Rail|MOSFET Drain Connection|
+| SPI clock | Pin 19 (PB5) | `SCL` | Pin 19 (PB5) | Master out / slave in |
+| Master output | Pin 17 (PB3) | `SDA` | Pin 17 (PB3) | Master out / slave in |
+| Slave output | Pin 18 (PB4) | `SDO` | Pin 18 (PB4) | Slave out / master in |
+| Chip select | Pin 15 (PB1) | `CS` | Pin 16 (PB2) | Active-low pulse |
+| Hardware alarm | Pin 4 (PD2) | `INT1` | Pin 4 (PD2) | Active-low interrupt |
+| Power gate | Pin 14 (PB0) | — | VCC rail | MOSFET drain |
 
----
+## 3. Child-sheet controls
 
-## 3. Subcircuit Interaction Mechanics (Child Sheet Controls)
+The child sheet has six digital inputs so each simulated axis can be moved on its own:
 
-To facilitate intuitive environmental validation inside the Proteus workspace, the child sheet encapsulates six distinct digital inputs grouped to modify simulated physical displacement variables independently.
+- X axis: PD4 (+) and PD5 (−).
+- Y axis: PD6 (+) and PD7 (−).
+- Z axis: PB0 (+) and PC3 (−).
+- Each button has a 10 kΩ THT axial pull-up to stop floating inputs in the simulator.
+- A 150 ms software poll (`_delay_ms(150)`) debounces the buttons and stops register drift from multiple triggers.
 
-- X-Axis Control Layer: Driven by pins PD4 (+) and PD5 (-). Adjusts virtual roll values.
-- Y-Axis Control Layer: Driven by pins PD6 (+) and PD7 (-). Adjusts virtual pitch values.
-- Z-Axis Control Layer: Driven by pins PB0 (+) and PC3 (-). Adjusts raw gravitational vectors.
-- Electrical Stability: Every interaction button features a 10kΩ THT axial pull-up resistor to prevent floating states in the simulation engine.
-- Debounce Window: Software-implemented polling buffers (`_delay_ms(150);`) guarantee clean data increments, preventing multi-trigger register drift.
+## 4. Driver logic
 
----
+The firmware is bare-metal C on avr-libc. It avoids the larger Arduino layers and keeps RAM use inside the ATmega328P limits.
 
-## 4. Driver Logic & Firmware Architecture
+### Slave state machine
 
-The implementation uses strict bare-metal C targeting avr-libc to fulfill strict memory allocation limits and skip bloated prototyping layers.
+To clear the `SPDR Write Collision` and `Data Overrun` warnings in Proteus, the slave uses a non-blocking flag check:
 
-## 🔬 Asynchronous Slave State Machine
+1. It polls the `SPSR` `SPIF` flag in the main loop.
+2. When an address byte arrives, it extracts the 6-bit index (`addr & 0x3F`).
+3. If bit 7 of the command byte is set (`0x80`, a read), the slave preloads `SPDR` with the requested byte before the master sends the next clock. That keeps the data shift clean.
 
-To completely resolve `SPDR Write Collision` and `Data Overrun` warnings inside Proteus, the slave utilizes a non-blocking hardware flag interrogation layout:
+### Identity check (`WHO_AM_I`)
 
-1. It constantly scans the `SPSR` register's `SPIF` flag instead of looping inside an isolated thread.
-2. The instant an address byte is received, the slave extracts the 6-bit bounded index (`addr & 0x3F`).
-3. If bit 7 of the command byte is asserted (`0x80`), indicating an active READ command, the slave preloads its `SPDR` register with the target byte data _before_ the master finishes preparing its next clock pulse. This yields error-free, microsecond-accurate data shifts.
+At boot the master reads register `0x0F`. The fake returns `0x33`, the LIS3DH factory signature. Main execution blocks until the check passes, so a bad sensor read cannot enter the packet.
 
-## 📬 Identity Validation (`WHO_AM_I`)
+## 5. Verification
 
-Upon system boot, the Master issues a read request to register address `0x0F`. The Fake Accelerometer firmware returns an immutable byte value of `0x33` (the standard factory signature for LIS3DH devices). Main execution blocks until this validation is successful, protecting the network from corrupt sensor reads.
+Telemetry goes to a Proteus Virtual Terminal at 9600 baud (8-N-1) on master pin PD1 (TXD).
 
----
-
-## 5. Verification & Telemetry Output
-
-Telemetry capture is routed to a Proteus Virtual Terminal instruments block set to 9600 Baud (8-N-1) wired directly to Master pin PD1 (TXD).
-
-```unset
+```text
 --- LANDSLIDE NODE DEBUG BOOT ---
 Powering on MOSFET rail... ON
 SPI Bus Master Status... READY
@@ -92,8 +84,8 @@ X:  100 | Y:  -50 | Z:    0
 [ALERT] Hardware Motion Interrupt Triggered on INT1!
 ```
 
-## 🏆 Operational Accomplishments
+## What this validated
 
-- Zero Log Conflicts: Implementation completely clears out historical Proteus pipeline collision warnings.
-- Hardware Isolation: The subcircuit design keeps the parent schematic layout exceptionally clean, making it simple to transfer directly to your PCB design tools (like KiCad or EasyEDA). [1]
-- Power Conservation Validation: Pulling `PB0` high explicitly drops the sensor rail to zero volts in the schematic, validating the node's long-term field survivability.
+- The Proteus pipeline runs without collision warnings.
+- The subcircuit keeps the parent schematic readable and the wiring maps directly onto a PCB tool.
+- Pulling `PB0` high drops the sensor rail to zero in the schematic, which matches the intended sleep behaviour of the node.

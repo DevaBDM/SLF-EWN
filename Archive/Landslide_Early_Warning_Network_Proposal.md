@@ -476,7 +476,7 @@ The proposed architecture achieves a target operational lifespan of 3–7 years 
 # New updates
 
 - The development of the software dashboard we used C++ Qt6 with QML  
-- Your proteus set the global VCC value to 3.6 voltage it's under design ->Configure Power Rails and select the VCC/VDD and set the value to the 3.6v and update it
+- The Proteus global VCC rail is set to 3.6 V. In Design -> Configure Power Rails, select VCC/VDD, set the value to 3.6 V and apply it.
 
 - There will a device that are buried underground so that they will transmite the data like more that 5+ devices
 - There will be a tower that acceptes those connections and sends to mcu that have a db that store the data come to it, this can be connected to the desktop or anything that can connect to it using a usb and run the software to analyse the data or a dedicated pc that shows the data.
@@ -487,19 +487,19 @@ The proposed architecture achieves a target operational lifespan of 3–7 years 
 # Components update
 
 - for simulating the LoRa module we will use a subcircuit that have another atmega328p to fake the LoRa communication and displays suing the virtual terminal
-- **Accelerometer Upgrade**: Replaced the baseline ADXL345 module with the **LIS3DH Module**. This cuts your system sleep current drastically from **23 µA down to 2 µA**, ensuring you meet your 3-to-7 year battery life goal.
+- **Accelerometer Upgrade**: Replaced the baseline ADXL345 module with the **LIS3DH Module**. This cuts system sleep current from **23 µA down to 2 µA**, which is what keeps the 3-to-7 year battery life target reachable.
 ![[LIS3DH.png]]
-- S**MOSFET Optimization**: wapped out the surface-mount AO3401 (SOT-23) for the **ZVP2106A (TO-92)**. This gives you a true, classic through-hole P-channel MOSFET to perform your sensor power-gating safely.
+- **MOSFET Optimization**: Swapped the surface-mount AO3401 (SOT-23) for the **ZVP2106A (TO-92)**, a through-hole P-channel MOSFET for the sensor power-gating.
 - **Radio Interface**: Standardized the **RFM95W module on 2.54 mm headers** so it drops straight into standard THT footprints instead of requiring surface-mount castellated pads.
-- **(Periodic Check)** with the Capacitive Soil Moisture v1.2 module is the most reliable path for your ground-up PCB design. This method ensures the sensor only draws power when needed, which is critical for achieving your multi-year battery goals.
+- **(Periodic Check)** with the Capacitive Soil Moisture v1.2 module is the most reliable path for the ground-up PCB. Power-gating the sensor so it only draws current during a reading is what makes multi-year battery life possible.
 
 ## Future candidates for sensing the movement of the land 
 1. The Pull-Wire Extensometer (Best for Compact IoT Nodes)
 
 Instead of measuring the node itself, this sensor measures the distance between the node and a fixed point across an underground fault line.
 
-- **The Sensor:** A **Draw-Wire Sensor (or Rotary Encoder Extensometer)**. A thin, high-tensile steel wire extends from your small PVC capsule and anchors to a stable rock, deep stake, or adjacent layer of soil. 
-- **How it catches tiny slides:** If the unstable earth slides even **0.1 millimeters**, it pulls the wire slightly. The rotary encoder inside your capsule turns, giving your ATmega328P a precise, mathematical measurement of exactly how far the land shifted. 
+- **The Sensor:** A **Draw-Wire Sensor (or Rotary Encoder Extensometer)**. A thin, high-tensile steel wire extends from the small PVC capsule and anchors to a stable rock, deep stake, or adjacent layer of soil. 
+- **How it catches tiny slides:** If the unstable earth slides even **0.1 millimeters**, it pulls the wire slightly. The rotary encoder inside the capsule turns, giving the ATmega328P a precise measurement of how far the land shifted. 
 - **Prototyping Advantage:** High-precision digital draw-wire encoders are compact and communicate easily with a microchip over standard digital communication interfaces.
 
 ---
@@ -510,7 +510,7 @@ This is the premier industrial standard for detecting deep, tiny sub-surface she
 
 - **The Sensor:** A cheap, rugged **coaxial cable** buried vertically or horizontally through the soil layers. 
 - **How it catches tiny slides:** When a tiny slide happens, the moving layer of earth pinches, bends, or stretches the buried cable. This micro-deformation alters the electrical properties (impedance) at that exact spot on the wire. By bouncing an electrical pulse down the cable, the system can pinpoint exactly where the tiny shift occurred down to the centimeter.
-- **Prototyping Advantage:** This requires an advanced high-speed pulse circuit, making it a great feature to include in your project's theoretical future-work documentation to impress a grading panel.
+- **Prototyping Advantage:** This requires an advanced high-speed pulse circuit, so it belongs in future-work documentation rather than the current build.
 
 ---
 
@@ -519,11 +519,11 @@ This is the premier industrial standard for detecting deep, tiny sub-surface she
 Instead of looking at raw vibration, this focuses on long-term angle deviation.
 
 - **The Sensor:** Digital high-resolution inclinometers (like a highly sensitive version of the ADXL345, or specialized chips like the **SCA103T**).
-- **How it catches tiny slides:** It constantly records the gravity baseline vectors. If the ground experiences microscopic "creep" (moving a few millimeters a week), the module logs the minute change in angular slope over days. Your Qt computer application can graph this steady, slow angle increase to predict a landslide hours before it accelerates.
+- **How it catches tiny slides:** It constantly records the gravity baseline vectors. If the ground experiences microscopic "creep" (moving a few millimeters a week), the module logs the minute change in angular slope over days. The Qt application graphs this steady, slow angle increase, which can predict a landslide hours before it accelerates.
 
 ---
 
-The most practical approach is adding **Footprint Pads for an External Digital Extensometer Link** onto your EasyEDA board.
+The most practical approach is adding **Footprint Pads for an External Digital Extensometer Link** on the EasyEDA board.
 
 for note: "While the internal accelerometer monitors sudden vibrations, the board features a digital input port connected to an underground wire extensometer to measure microscopic terrain creep down to fractions of a millimeter."
 

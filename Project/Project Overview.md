@@ -12,7 +12,7 @@ parent: "[[SLF-EWN Hub]]"
 
 # Project overview
 
-← [[SLF-EWN Hub]] · Formal text: [[Full Proposal]] · Mentor challenges: [[Challenges and Solutions]] · Live gaps: [[Status and open issues]] · Standards: [[Project Overview#IEC standards and feasibility]] · Mentor pack: [[Mentor readiness]]
+← [[SLF-EWN Hub]] · Formal text: [[Full Proposal]] · Design challenges: [[Challenges and Solutions]] · Live gaps: [[Status and open issues]] · Standards: [[Project Overview#IEC standards and feasibility]] · Feasibility notes: [[Mentor readiness]]
 
 Buried nodes at **1 m**, **ADXL345** + capacitive moisture, **Ra-02** 433 MHz through soil, tower **W25Q64** + USB, **Qt 6 / QML**. Life target **3–7 years**. Five or more nodes per tower.
 
@@ -226,10 +226,10 @@ Datasheets to keep: ATmega328P, ADXL345, SX1278/Ra-02, W25Q64, moisture v1.2.
 
 ## IEC standards and feasibility
 
-**Mentor check:** confirm the project is **feasible** under normal IEC practice.  
-**Conclusion:** yes. The concept (buried moisture + tilt node, 433 MHz LoRa, primary cell, surface tower, PC dashboard) sits inside established IEC domains. That means the approach is **allowed and designable** under those frameworks — not that we already hold accredited lab certificates.
+**Feasibility check:** the project has to be **feasible** under normal IEC practice.  
+**Conclusion:** yes. The concept (buried moisture + tilt node, 433 MHz LoRa, primary cell, surface tower, PC dashboard) sits inside established IEC domains. That means the approach is **allowed and designable** under those frameworks, not that we already hold accredited lab certificates.
 
-### Feasibility statement (quote for reviews)
+### Feasibility statement
 
 > SLF-EWN is feasible with respect to IEC practice: a sealed, battery-powered subsurface sensor with short-range sub-GHz radio and a surface acquisition unit falls within established IEC scopes for ingress protection (**IEC 60529**), environmental testing (**IEC 60068**), EMC (**IEC 61000**), ICT safety (**IEC 62368-1**), and primary batteries (**IEC 60086**). Radio operation is constrained by spectrum regulation (typically ETSI / national SRD rules), not by an IEC prohibition.
 
@@ -277,7 +277,7 @@ Formal product certification would need an accredited lab later. This prototype 
 
 Also summarised in [[Full Proposal#7.3 IEC standards and feasibility]].
 
-**Broader mentor questions** (spectrum, safety claims, cost, power proof, ethics, FAQ): [[Mentor readiness]].
+**Broader feasibility questions** (spectrum, safety claims, cost, power proof, ethics, FAQ): [[Mentor readiness]].
 
 ---
 

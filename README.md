@@ -12,7 +12,7 @@ Obsidian-style vault for the **Subterranean Landslide and Flood Early-Warning Ne
 | **[[Code Hub]]** | As-built AVR sources — wins over older prose |
 | **[[Firmware Hub]]** | 12-byte / 16-byte formats, status bits, WDT |
 | **[[Full Proposal]]** | Formal write-up |
-| **[[Challenges and Solutions]]** | Mentor presentation: problems, math, fixes, open work |
+| **[[Challenges and Solutions]]** | Presentation: problems, math, fixes, open work |
 
 ## Rule of truth
 

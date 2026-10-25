@@ -144,7 +144,7 @@ slf_crc8(data, len)         // init 0x00, poly 0x07 style
 
 ---
 
-## Chip hierarchy (what you flash)
+## Chip hierarchy (what gets flashed)
 
 ```
 Physical board / Proteus

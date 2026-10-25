@@ -122,5 +122,3 @@ Reserve **unpopulated** pads for a future digital extensometer — do not fit th
 **BOM (this board):** MCU + socket, Ra-02, ADXL345, moisture probe, ZVP2106A, Li-SOCl₂, **supercap**, SMA, headers, passives. **~$27.** Totals: [[Project Overview#Bill of materials]].
 
 **Not on TX:** USB, FT232, crystal (RC clock), W25Q64, LM1117.
-
-'''

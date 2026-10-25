@@ -211,14 +211,14 @@ _Crucial Rule:_ Directly burying bare wire causes changing moisture levels to co
 
 ##### 3. Compacting to Fit a 10cm Box (Helical Helix)
 
-To fit a 16.5 cm electrical length into your 10 cm charger-box enclosure, wind the wire into an inductor coil:
+To fit a 16.5 cm electrical length into the ~100 mm capsule, the wire is wound into a coil:
 
-- Wire Length: Cut exactly 17.0 cm of solid copper wire (extra 0.5 cm for soldering).
-- Coil Diameter: Wind tightly around a 5 mm rod or drill bit.
+- Wire length: cut exactly 17.0 cm of solid copper wire (extra 0.5 cm for soldering).
+- Coil diameter: wind tightly around a 5 mm rod or drill bit.
 - Turns: 18 to 22 close turns.
-- Final Physical Height: ≈ 3.5 cm (perfectly fits your 10 cm space).
+- Final physical height: ≈ 3.5 cm, which fits under the top cap.
 
-Would you like the exact 3D spacing layout to position this coil on your 50x50mm PCB for the best signal performance?
+The coil sits in an air pocket at the top of the stack, with its axis vertical.
 
 #### 2) THT Radio Interface
 
@@ -677,67 +677,54 @@ The proposed architecture achieves a target operational lifespan of 3–7 years 
 
 ---
 
-*This document represents the complete system design as conceived from project inception. All architectural decisions, component selections, and manufacturing workflows were established during the initial design phase to ensure a cohesive, manufacturable, and field-deployable early-warning platform.*
-
-
+This document records the design as it was first conceived. Component choices and manufacturing details changed during the build; the as-built values are on [[Project Overview]] and [[Firmware Hub]].
 
 # Limitation
-While 433 MHz LoRa can reach **10 to 15 kilometers in open air**, soil completely reshapes the link budget. Wet clay introduces extreme signal attenuation (roughly **10 to 40 dB per meter** depending on exact moisture levels).
 
-1. **The 1-Meter Clay Barrier:** The signal will lose roughly **20 to 40 dB** just traveling through that first vertical meter of water-logged clay.
-2. **The Refraction Effect:** When the radio wave hits the boundary where the soil meets the air, it bends sharply (refracts) and spreads out across the surface.
-3. **The Air Path:** Once the signal breaks into the air, it behaves like normal LoRa, traveling hundreds of meters with minimal path loss.
+433 MHz LoRa can reach **10 to 15 km in open air**, but soil changes the link completely. Wet clay attenuates roughly **10 to 40 dB per metre**, depending on moisture.
 
-3 Tips to Maximize the Range to Your Surface Server
+1. **The first metre of clay:** the signal loses roughly **20 to 40 dB** crossing the buried metre.
+2. **The soil–air boundary:** the wave refracts and spreads along the surface.
+3. **The air path:** after breakout it behaves like ordinary LoRa over hundreds of metres.
 
-- **Elevate the Server Antenna:** Raise the surface server's antenna at least **1.5 to 2 meters off the ground** on a pole. If the server antenna is sitting directly on the dirt, the ground will absorb the incoming signal, cutting your range in half.
-- **Use a High-Gain Antenna on the Server:** While the buried node is forced to use a tiny, inefficient helical antenna inside its 10cm box, the surface server has no size limits. Give the server a high-quality, high-gain **omnidirectional outdoor fiberglass antenna** to compensate for the buried node's weak signal.
-- **Keep the Buried Box Level:** Ensure the buried charger box is placed flat so the internal helical coil points straight up toward the sky. This aligns the polarization perfectly with the surface server's vertical antenna.
+## Range measures for the tower link
+
+- **Raise the tower antenna** at least **1.5 to 2 m** above ground. An antenna sitting on the dirt loses a large part of the incoming wave to the ground.
+- **Use a high-gain omnidirectional antenna on the tower.** The buried node is limited to a small helix inside the capsule; the tower has no size limit, so a fibre-glass outdoor whip compensates for the weaker node.
+- **Keep the capsule level.** The internal helix has to point straight up so its polarisation matches the vertical tower antenna.
 
 # Available on Vector4Engineering
-- ADXL345 Accelerometer
+
+- ADXL345 accelerometer
 ![[ADXL345 vector4engineering.png]]
-- Lora Module Ra-02
+- LoRa module Ra-02
 ![[Pasted image 20260826172439.png]]
-- Capacitive Soil Moisture Sensor v1.2
+- Capacitive soil moisture sensor v1.2
 ![[capacitive soil vector4engineering.png]]
 
+# Datasheets
 
-# Datasheet for
-EEPROM
-Accelerometer
-LORA
-
+EEPROM · accelerometer · LoRa.
 
 # About the EEPROM
 
-Using a W25Q64 (8 Megabytes / 64 Megabits) to log sensor data before sending it to a computer is a very common and excellent approach, but because sensor data "keeps coming," you have to manage how often you write to it so you don't burn out the chip.
+The tower logs to a **W25Q64** (8 MB / 64 Mbit) SPI NOR flash before any data goes to a computer. NOR is non-volatile, fast enough for the record rate, and holds **524,288** 16-byte records.
 
-Here is a breakdown of why it works well and what you need to watch out for:
+## Wear
 
-## Why it is a good idea
+NOR cells wear out after about **100,000 erase cycles per sector**. Writing the same address every second would destroy that sector in under 28 hours, so the log never writes in place.
 
-- Non-volatile: If your sensor device loses power or the battery dies, your data is safe and won't vanish.
-- Fast enough: It can easily handle the speed of typical sensor data.
-- Large capacity: 8MB can hold millions of individual sensor readings (e.g., if one reading is 8 bytes, it can hold 1 million readings).
+## Write policy
 
-## The Big Catch: Wear and Tear
+1. **Sequential append.** Records are written end to end; no in-place header update.
+2. **Ring buffer.** The write pointer advances through all 2,048 sectors and wraps to the start, which spreads erase cycles across the whole chip.
+3. **Erase on advance.** A 4 KB sector is erased only when the pointer reaches it. NOR can only change bits from `1` to `0`; the sector erase restores the `1`s.
 
-Because flash memory wears out after 100,000 writes per sector, how you write your code matters. If you write to the exact same memory address every second, you will destroy that part of the chip in less than 28 hours.
+## Life estimate
 
-## How to do it safely (Best Practices)
+At 96 records per node per day and 10 nodes, the fleet writes 960 records/day, or about 3.75 sectors/day.
 
-1. Buffer data in RAM first: Do not write to the flash chip for every single sensor reading. Collect readings in your microcontroller's RAM until you have a full "Page" (256 bytes), then write that entire page to the flash chip at once.
-2. Use a Ring Buffer / Wear Leveling: Start writing at address `0`, and move forward sequentially. When you reach the end of the 8MB chip, loop back to the beginning. This ensures the 100,000-cycle limit is spread evenly across the entire chip.
-3. Erase efficiently: Remember that flash memory can only change bits from `1` to `0` when writing. To change them back, you must erase. Erasing happens in 4KB sectors. Erase a sector only right before you are about to fill it with new data.
+- One full pass over the chip: 2,048 / 3.75 ≈ **546 days**.
+- With 100,000 cycles per sector, that is far beyond the 7-year deployment target.
 
-## Math Example: How long will it last?
-
-Assume your sensor takes a reading every 1 second, and each reading is 8 bytes (e.g., timestamp + temperature + humidity).
-
-- 1 page = 256 bytes = 32 readings (takes 32 seconds to fill in RAM).
-- The chip holds 32,768 pages.
-- It will take about 12 days of continuous logging just to fill the entire 8MB chip once.
-- Since every spot can be rewritten 100,000 times, the chip will last for over 3,000 years of continuous logging.
-
-To help you set this up correctly, could you tell me how many bytes each sensor reading is and how often (e.g., every millisecond, every second) the data arrives?
+The full derivation is in [[Challenges and Solutions]] sections I1–I2.

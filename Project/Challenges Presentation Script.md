@@ -10,30 +10,22 @@ parent: "[[Challenges and Solutions]]"
 status: active
 ---
 
-# Challenges and Solutions — plain-language explanations
+# Challenges and Solutions — plain-language notes
 
-Read this **beside** [[Challenges and Solutions]]. Each heading matches a slide code (A1, B2, …).  
-This note does **not** copy the slide. It explains, in everyday language, **why** those ideas exist and **where** the numbers and choices came from.
+These notes sit **beside** [[Challenges and Solutions]]. Each heading matches a slide code (A1, B2, …).  
+They do **not** repeat the slide. They explain, in everyday language, **why** each idea exists and **where** the numbers and choices came from.
 
----
+The deck covers **Phase 1 challenges and solutions**; Phase 2/3 appear only as a short look-ahead.
 
-### How to use this script
-
-This file supports [[Challenges and Solutions]]. The deck is **Phase 1 challenges and solutions**; Phase 2/3 are only a short review at the end.
-
-**Each technical slide** now opens with a short *why this is a challenge / what the solution direction is* paragraph on the slide itself. Use those opening lines when explaining, then the tables and equations—do not only read the diagram.
-
-Sections below stay **plain language** for non-technical listeners; they do not repeat every equation.
+Most technical slides open with a short paragraph on the slide itself: *why this is a challenge* and *which direction the solution takes*. Those lines are the starting point; the tables and equations carry the proof. These notes stay in plain language for non-technical listeners and do not repeat every equation.
 
 ---
 
 ## Opening slides
 
-**How to open this deck** — Instructions only for Obsidian’s Slides Extended plugin. Not part of the engineering story.
+**Title (SLF-EWN)** — Names the project and states the review style: every hard choice shows a conflict, some numbers, what was built, and what is still unproven.
 
-**Title (SLF-EWN)** — Names the project and states the review style: every hard choice should show a conflict, some numbers, what was built, and what is still unproven.
-
-**How this deck is organised** — Roadmap of sections A–J so a non-specialist can see the journey: system → radio packet → why this radio → location logic → battery → wake-up → antenna → board size → memory/security → what is still open.
+**How this deck is organised** — Roadmap of sections A–J so a non-specialist can follow the journey: system → radio packet → why this radio → location logic → battery → wake-up → antenna → board size → memory/security → what is still open.
 
 ---
 
@@ -110,7 +102,7 @@ Where it came from: the firmware packing code and the need to keep radio time sh
 The same twelve bytes appear in three wrappers:
 
 - On the radio, alone.  
-- In the tower’s memory, with an extra counter so you can say “give me everything after record 1200.”  
+- In the tower’s memory, with an extra counter so the operator can say “give me everything after record 1200.”  
 - On the USB link to the PC, inside a command/reply envelope so the PC can ask for status, full dump, or “only new records.”
 
 If encryption is added later, the message may grow; then energy and storage math must be redone.
@@ -141,7 +133,7 @@ The concrete module (Ra-02 / SX1278) is what the team can buy and drive from the
 
 This is the “radio settings shopping list” the two ends of the link must agree on: frequency, spreading, bandwidth, power class, antenna height and orientation, and a preference that each transmission not linger too long on air.
 
-The formula on the slide is the standard idea: received power = what you transmit + antenna gains − losses in soil, air, and extras. Until the team measures loss in **their** soil with **their** antenna, the range numbers stay design targets, not certified facts.
+The formula on the slide is the standard idea: received power = what is transmitted + antenna gains − losses in soil, air, and extras. Until we measure loss in **our** soil with **our** antenna, the range numbers stay design targets, not certified facts.
 
 ---
 
@@ -211,7 +203,7 @@ If the radio or moisture sensor stayed powered all day “just in case,” the y
 
 ## E2
 
-Rough energy in the cell and a hard ceiling on average current if you want multi-year life (tens of microamps). The team aims even lower to leave margin for cold, ageing, and small leaks on the circuit board.
+Rough energy in the cell and a hard ceiling on average current for multi-year life (tens of microamps). The design aims even lower to leave margin for cold, ageing, and small leaks on the circuit board.
 
 Practical extras: don’t use a brown-out setting that bricks the chip as the cell ages; use a simple jumper so storage does not drain the cell.
 
@@ -276,7 +268,7 @@ Design answers, in order: lower frequency, keep the antenna out of clay, point p
 
 A radio antenna has a natural size related to wavelength. In free air at 433 MHz that is on the order of sixteen centimetres for a quarter-wave style element.
 
-Packed in wet clay, the electrical size collapses and wanders as moisture changes — worst at the moment you care about warnings. So the antenna must sit in an **air pocket** inside the capsule, not mud-packed against the soil.
+Packed in wet clay, the electrical size collapses and wanders as moisture changes — worst at the moment warnings matter most. So the antenna must sit in an **air pocket** inside the capsule, not mud-packed against the soil.
 
 ---
 
@@ -400,4 +392,4 @@ Pointers into the vault for anyone who wants depth after the talk: Overview, Fir
 
 ## End
 
-Questions. Default to a **Phase 1** measurement or open-issue ID unless the mentor asks about the future roadmap.
+Questions. Default to a **Phase 1** measurement or open-issue ID unless the question is about the future roadmap.

@@ -13,7 +13,7 @@ status: planned
 
 # Phase 2 and Phase 3 plan
 
-← [[Project Overview]] · Architecture freeze: [[Data path future architecture]] · Gaps: [[Status and open issues]] · Mentor: [[Mentor readiness]]
+← [[Project Overview]] · Architecture freeze: [[Data path future architecture]] · Gaps: [[Status and open issues]] · Feasibility: [[Mentor readiness]]
 
 **Purpose.** Fine-grained work list to follow when implementation starts. **Do not start Phase 2 hardware/firmware until Phase 1 exit criteria are met** (unless a named exception is agreed).
 
@@ -75,7 +75,7 @@ Architecture reference: [[Data path future architecture]].
 | B2 | Hardware: battery voltage divider (and solar sense if solar present) | ADC channel + calibration constants |
 | B3 | Firmware: periodic status log + on-demand poll command | e.g. extend `'S'` or new `'T'` tower status |
 | B4 | Qt **Tower panel**: voltage, uptime, flash fill, siren, last node heard | UI mock → implement |
-| B5 | Handheld one-line summary (after Workstream E) | `BAT … SIRÉN … LOG %` |
+| B5 | Handheld one-line summary (after Workstream E) | `BAT … SIREN … LOG %` |
 
 **Exit B:** Host shows tower health beside node cards when linked.
 
@@ -207,7 +207,7 @@ Not scheduled in detail until Phase 2 mid-point. Fine grain later; themes:
 | This page | Master step list |
 | [[Data path future architecture]] | What Phase 2 *is* (design freeze) |
 | [[Status and open issues]] | Live blockers (P1 IDs + later Phase 2 tickets) |
-| [[Mentor readiness]] | What to say when asked “what’s next?” |
+| [[Mentor readiness]] | Feasibility and standards answers for review questions |
 
 **Implementation rule:** When a Phase 2 step starts, open a row under Status (e.g. `P2-A3`) and close it when the deliverable exists — do not only update this plan page.
 
@@ -218,5 +218,4 @@ Not scheduled in detail until Phase 2 mid-point. Fine grain later; themes:
 - Replacing USB entirely  
 - Full map GUI on handheld  
 - Certified life-safety / evacuation system claims for the siren  
-- Redesigning the 12-byte node PDU without a written budget impact  
-'''
+- Redesigning the 12-byte node PDU without a written budget impact
