@@ -13,7 +13,7 @@ status: planned
 
 # Data path future architecture (planned — not this prototype build)
 
-← [[Project Overview]] · [[Full Proposal#11. Future work (not this build)]] · Live build: USB tower + Qt only
+← [[Project Overview]] · [[Full Proposal#13. Future work]] · Live build: USB tower + Qt only
 
 **Status:** **Planned.** Current prototype keeps **tower USB ↔ Qt** only. This page freezes the agreed multi-path design so later work does not invent a second story.
 

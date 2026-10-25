@@ -28,7 +28,7 @@ status: active
 | `F_CPU` | 8 MHz internal RC | 16 MHz |
 | Power | 3.6 V, FET `PD4` | USB 5 V, no FET |
 | Job | WDT sleep → measure → LoRa TX | DIO0 ISR → flash log → **poll** UART |
-| Debug UART | **9600** 8N1 TX only (`PD1`) | **115200** 8N1 TX+RX (dashboard) |
+| Debug UART | **9600** 8N1 TX only (`PD1`) | **115200** host setting (111.1 kbaud actual — H9) |
 
 ```mermaid
 stateDiagram-v2
@@ -62,9 +62,9 @@ Offset  0        2        4        6        8        10   11
 |:---:|:----:|:------|:-----|
 | 0 | u16 BE | Device ID | `DEVICE_ID` default **`0x0104`** → bytes `01 04` |
 | 2 | u16 BE | Moisture 0–10000 | `(adc10 * 10000) / 1023` on **ADC1** |
-| 4 | i16 BE | Tilt X | Firmware: `(reg8 - 128) * 15` (~±1920). Dashboard: raw **−1950…1950 → −180°…180°** |
+| 4 | i16 BE | Tilt X | Raw ADXL345 16-bit count, full-resolution ±2 g (**3.9 mg/LSB**, 1 g ≈ 256 counts) |
 | 6 | i16 BE | Tilt Y | same |
-| 8 | i16 BE | Tilt Z | same; alarm mag = max \|axis\| in degrees |
+| 8 | i16 BE | Tilt Z | same; the host converts each axis to an angle and alarms on the largest magnitude |
 | 10 | u8 | Status | [[#Status byte]] |
 | 11 | u8 | CRC-8/SMBUS | poly `0x07`, init `0x00`, bytes **0–10** |
 
@@ -78,14 +78,16 @@ SPI to fake TX: **`0x8D`** then these 12 bytes, `_delay_us(250)` each (sim build
 
 | Off | Size | Field |
 |:---:|:----:|:------|
-| 0 | u32 BE | Record ID = `write_count` at append (0, 1, 2, …) |
+| 0 | u32 BE | Record ID = `record_count` at append (0, 1, 2, …) |
 | 4 | 12 B | Air frame (section 1) |
 
-Chip map: header `write_count` at **`0x000000`**, records from **`0x000010`**. Max **`(131072 − 16) / 16 = 8191`** records. **Stops** when full.
+There is **no stored header**. Record *n* starts at `n × 16`. Capacity is **8 MB / 16 B = 524,288 records**. On boot, `record_count` is recovered by finding the first still-erased slot (first byte `0xFF`). Append erases the 4 KB sector when the pointer enters it; when the chip is full, a chip erase restarts the log at record 0. `CLEAR` is also a real chip erase — not a counter reset.
 
 ### 3. Tower ↔ dashboard — 115200 8N1, PC polls
 
 Not a stream of 12-byte frames.
+
+> **Baud caveat (H9).** The dashboard opens **115200**, but `receiver.c` calls `uart_init(8)` with `U2X = 0` at 16 MHz, which is **111.1 kbaud** — about **3.6 % low**, outside the usual ~2 % budget. The Proteus link tolerates it. The least-bad 16 MHz divisor is `U2X = 1` / `UBRR = 16` (**117.6 kbaud, +2.1 %**, still marginal); a 14.7456 MHz crystal with `UBRR = 7` gives exactly 115200.
 
 **PC → tower:** one command byte, then optional data.
 
@@ -94,7 +96,7 @@ Not a stream of 12-byte frames.
 | `0x53` | `'S'` `CMD_STATUS` | — | used + free counts |
 | `0x44` | `'D'` `CMD_FULL` | — | dump **all** records |
 | `0x4E` | `'N'` `CMD_NEW` | 4-byte BE `last_id` | dump IDs **> last_id** |
-| `0x43` | `'C'` `CMD_CLEAR` | — | `write_count = 0` |
+| `0x43` | `'C'` `CMD_CLEAR` | — | chip erase; record count returns to 0 |
 
 Unknown → error `0x01`. `'N'` missing 4 bytes (100 ms) → error `0x02`.
 
@@ -108,7 +110,7 @@ Unknown → error `0x01`. `'N'` missing 4 bytes (100 ms) → error `0x02`.
 
 | cmd | Payload |
 |:----|:--------|
-| `0x53` | 8 B: `write_count` u32 BE, `free` u32 BE |
+| `0x53` | 8 B: `record_count` u32 BE, `free` u32 BE |
 | `0x44` / `0x4E` | `N × 16` records |
 | `0x43` | empty |
 | `0xFF` | 1 B error |
@@ -132,6 +134,8 @@ bit0     0x01  WHO_AM_I failed — ORed last, so it overwrites seq LSB
 ```
 
 `seq_counter++` every cycle. Dashboard CRITICAL on **`0x80`**. `0x01` → ignore XYZ (left 0). Fake LoRa RX prints `seq = frame[10] & 0x7F`.
+
+> **Known ambiguity (F10):** `0x01` shares bit 0 with the sequence counter, so an accel-error frame cannot be distinguished from a normal frame whose sequence LSB is 1. Code still sets it because the error path is rare; a future revision should reduce the sequence to six bits (0–63) and use bit 6 for the accel-error flag.
 
 ---
 
@@ -212,14 +216,14 @@ Activity: `THRESH_ACT` default `0x20` (~2 g at 62.5 mg/LSB), `ACT_INACT_CTL` XYZ
 | `DATAX0`… | `0x32`… | axis data (LSB first) |
 
 Conversion to tilt angle (approx):
-
 ```c
-/* DATAX0 and DATAX1 form int16_t in LSB-first order */
-int16_t raw_x = (DATAX1 << 8) | DATAX0;  /* 13-bit, ±2000 mg at ±2 g range */
-int16_t tilt_x = (raw_x * 180) / 2000;    /* approx ±180 degrees */
+/* DATAX0/DATAX1 form int16_t in LSB-first order. */
+int16_t raw_x = (DATAX1 << 8) | DATAX0;  /* full-resolution ±2 g, 3.9 mg/LSB */
+/* 1 g ≈ 256 counts. Angle per axis: asin(clamp(raw / 256, -1, 1)) * 180/pi */
 ```
+If `DEVID` check fails, tilts stay 0 and status bit0 is set.
 
-If `DEVID` check fails, tilts stay 0 and status bit0 is set. Full resolution ±2 g = ±2000 mg; conversion to degrees: `mg_value / 16.0 ≈ degrees` (depends on axis orientation).
+> **Host mapping (F9):** the node sends **raw counts**, not pre-scaled degrees. The Qt parser must apply the ADXL345 scale (3.9 mg/LSB, 1 g ≈ 256) and use `asin` per axis. A linear “−1950…1950 → −180…180” mapping is not physically correct and will under-read tilt. Confirm the deployed parser before quoting angles.
 
 ---
 
@@ -236,21 +240,21 @@ Always awake. No FET.
 | UART TX / RX | PD1 / PD0 | 3 / 2 |
 | XTAL | PB6 / PB7 | 9 / 10 |
 
-**LoRa SPI Mode 1** (`CPHA`) in the ISR: CS low, 200 µs, twelve `0xFF` clocks with 150 µs gaps, CS high. UART **UBRR=8** → 115200 @ 16 MHz. Matches [[fake_lora_receiver.c]].
+**LoRa SPI:** production `receiver_radio.c` is master **Mode 0** (`CPOL=0`, `CPHA=0`) for the real SX1278. The Proteus fake RX is configured **Mode 1** (`CPHA=1`); that pair is sim-only (F5). Confirm the mode before reusing the fake. UART **UBRR=8, U2X=0** → **111.1 kbaud** at 16 MHz, not 115200 (H9). Matches [[fake_lora_receiver.c]].
 
-**Flash SPI Mode 0:** `0x06` WREN, `0x02` write + 24-bit address, `0x03` read, `0x05` RDSR bit0 busy. **No `0x20` erase** — this is the 25AA1024 / `SIM_EEPROM` path. Real W25Q64 still needs sector erase before reuse; that is **not in this file yet**.
+**Flash SPI Mode 0:** `0x06` WREN, `0x02` page program + 24-bit address, `0x03` read, `0x05` RDSR bit0 busy, `0x20` 4 KB sector erase, `0xC7` chip erase. `receiver_storage.c` checks the JEDEC ID (`EF 40 17`) before accepting writes. The Proteus 25AA1024 stand-in ignores sector erase and does not supply that ID, so the sim build needs a JEDEC bypass (F4).
 
-### Layout (128 KB stand-in)
+### Layout (8 MB W25Q64)
 
 | Address | Use |
 |:--------|:----|
-| `0x000000` | 4-byte BE `write_count` |
-| `0x000010` | records, 16 B each |
-| Max records | `(131072 - 16) / 16` |
+| `0x000000` | record 0, 16 B |
+| `0x7FFFF0` | record 524,287, 16 B |
+| Capacity | `0x800000 / 16` = **524,288 records** |
 
-Append: if `write_count >= EE_MAX_RECORDS`, **stop** (not a ring). Not a 256-byte RAM page buffer — each record is a 16-byte write + header update.
+Append is sequential: erase the sector on entry, page-program one 16-byte record, increment `record_count`. At full capacity the chip is erased and logging restarts at 0. There is no RAM page buffer and no in-place header update.
 
-Main loop: UART commands first, then if `packet_ready` and CRC ok → `ee_append_frame`. Wait until DIO0 goes **low** before the next ISR.
+Main loop: UART commands first, then if `packet_ready` and CRC ok → `receiver_storage_append(frame)`. Wait until DIO0 goes **low** before the next ISR.
 
 ---
 
@@ -271,7 +275,7 @@ Behaviour: [[Proteus Hub#Fake peripherals]]. Files: [[Code Hub]].
 | Module | Ra-02 (SX1278) |
 | Spreading factor | **SF7 baseline** in drivers; SF8–9 allowed if field tests need more margin |
 | Bandwidth / coding | **125 kHz**, CR **4/5** class (TX and RX **must match**) |
-| PA | **PA_BOOST** band ≈ **+14…+20 dBm** — drives ~120 mA peaks → TX RC buffer |
+| PA | **PA_BOOST at +17 dBm configured** (`PA_CONFIG 0x8F`; module capable of +20 dBm) — budget ~120 mA design peak (~87 mA typical at +17 dBm) → TX RC buffer |
 | ToA (12 B, SF7 class) | **~40–50 ms** on-air (use this for energy, not a 2 ms edge only) |
 | Payload | Fixed **12-byte** PDU + CRC policy |
 
@@ -283,13 +287,13 @@ $$P_{rx} = P_{tx} + G_{tx} + G_{rx} - L_{soil} - L_{air} - L_{misc}$$
 
 | Term | SLF-EWN order |
 |:-----|:--------------|
-| \(P_{tx}\) | +14…+20 dBm |
+| \(P_{tx}\) | **+17 dBm configured** (`0x8F`); +20 dBm module maximum |
 | \(G_{tx}\) / \(G_{rx}\) | Helix ~0–3 dBi · tower whip ~2–6 dBi |
 | \(L_{soil}\) | **10–40 dB** through ~1 m wet clay (**H4** until measured) |
 | \(L_{air}\) | Free-space after breakout; design target **100–200 m** class with tower **1.5–2 m AGL** omni |
 | \(L_{misc}\) | Connectors, polarisation ~1–3 dB |
 
-Need \(P_{rx}\) above usable modem sensitivity (design class ~−125 dBm or better with higher SF). Open-air “many km” figures do **not** apply to the buried metre.
+Need \(P_{rx}\) above the SF7 modem sensitivity (**~−123 dBm**; better at higher SF). Open-air “many km” figures do **not** apply to the buried metre.
 
 ## Pre-flash (off the PCB)
 
@@ -299,9 +303,9 @@ No ICSP on the buried board. ZIF + Arduino as ISP + AVRDUDE.
 |:-----|:------|:--------|
 | Low | `0xE2` | 8 MHz RC, no CKDIV8 |
 | High | `0xDA` | No bootloader |
-| Extended | `0xFD` | **BOD** (Brown-Out Detector) off / 1.8 V — never Arduino 2.7 V (locks as Li-SOCl₂ ages) |
+| Extended | `0xFF` | **BOD disabled** — do not use the Arduino default `0xFD`, which is a 2.7 V brown-out and locks the chip as the Li-SOCl₂ cell ages. `0xFE` selects a 1.8 V BOD if a detector is wanted |
 
-Tower: **16 MHz crystal fuses**, not `0xE2`.
+Tower: **16 MHz crystal fuses**, not `0xE2`. The extended fuse is separate from the clock fuses; both are tracked as H2.
 
 ---
 

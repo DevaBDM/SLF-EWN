@@ -19,9 +19,17 @@ status: active
 
 Boards: [[Transmitter PCB]] · [[Receiver PCB]]
 
-![[system-block-diagram.png]]
+```mermaid
+flowchart LR
+  N[Buried node<br/>moisture + ADXL345<br/>ATmega328P 8 MHz] -->|433 MHz LoRa<br/>12-byte frame| T[Tower<br/>Ra-02 + ATmega328P 16 MHz]
+  T -->|SPI| F[W25Q64<br/>16-byte records]
+  T -->|USB-UART| D[Qt 6 / QML<br/>dashboard]
+```
 
-**Link (intent):** LoRa 433 MHz · **1 m** through soil · **200–500 m** after breakout.
+**Link (intent):** LoRa 433 MHz · **1 m** through soil · **100–200 m** after breakout.
+
+> [!warning] Schematic/PCB revision mismatch (H7)
+> The exported schematic and PCB images in `Attachments/` are **not the as-built design**. They show an **LIS3DH** module footprint, **two Li-SOCl₂ holders** and a **supercap/EEPROM** block on the receiver, while the build text and `Code/` specify **ADXL345**, **single cell**, **USB-only receiver**, and **W25Q64**. Treat the images as an earlier revision until the boards are re-exported; see **H7** on [[Status and open issues]].
 
 ---
 
@@ -34,7 +42,7 @@ Boards: [[Transmitter PCB]] · [[Receiver PCB]]
 | **τ = 56.4 s** | RC time constant | **No** |
 | **5τ = 282 s (4.7 min)** | Full recharge window | **No** |
 | **ΔV = 127 mV** | Voltage dip @ 120 mA × 50 ms | **No** |
-| **I_max = 3.0 mA** | Inrush-limited to Li-SOCl₂ safe | **No** |
+| **I_max = 3.0 mA** | **Cell inrush limit** through 1.2 kΩ — the load itself still draws ~120 mA peaks from the supercap | **No** |
 | **ZVP2106A / VCC_SW** | **Yes** — **moisture + Ra-02 only** | **No** |
 | **ADXL345 power** | **Always-on 3.6 V** (INT in sleep) | Not fitted |
 | **Primary cell** | Li-SOCl₂ AA | No (USB) |

@@ -237,7 +237,7 @@ $$
 L(d{=}1\,\mathrm{m}) \sim 10\text{–}40\ \mathrm{dB}
 $$
 
-**Link-budget sketch** (order of magnitude, ~145 dB class: +20 dBm Tx → −125 dBm Rx):
+**Link-budget sketch** (order of magnitude, ~140 dB at the SF7 setting: **+17 dBm Tx → ≈−123 dBm Rx**; higher SF buys a few dB at the cost of airtime):
 
 1. 1 m wet clay consumes **10–40 dB**.
 2. Remaining air budget ≈ **105–135 dB**.
@@ -258,7 +258,7 @@ $$
 ```mermaid
 flowchart TB
   P[12-byte PDU · low duty cycle] --> CSS[LoRa chirp spread spectrum]
-  CSS --> SEN[High receiver sensitivity<br/>order of −148 dBm class devices]
+  CSS --> SEN[High receiver sensitivity<br/>≈ −123 dBm at SF7 / 125 kHz<br/>device max −148 dBm at SF12 / 10.4 kHz]
   CSS --> TOA[Time-on-air set by SF, BW, CR, payload]
   SEN --> LINK[Close link after soil attenuation]
   TOA --> BUDGET[Bound energy and collision duration]
@@ -287,8 +287,8 @@ TX and RX must agree on frequency, spreading, bandwidth, sync, and payload lengt
 | :-------------------- | :------------------------------------------------------------- |
 | Frequency             | **433.0 MHz** ISM                                              |
 | Module                | **Ra-02** (SX1278)                                             |
-| Spreading / bandwidth | SF7–9 class, **125 kHz** (TX/RX matched)                       |
-| TX power              | ≈ **14–20 dBm** (PA_BOOST class)                               |
+| Spreading / bandwidth | **SF7**, **125 kHz** in code (SF8–9 are the robustness trade space) |
+| TX power              | **+17 dBm configured** (`PA_CONFIG 0x8F`, PA_BOOST)            |
 | Payload               | **12 bytes** + CRC policy as implemented                       |
 | ToA preference        | **&lt; 500 ms** per packet; **SF7** ≈ **41 ms** pure airtime (~50 ms with sample overhead) |
 | Tower antenna         | Vertical polarisation, **1.5–2 m** AGL, omni                   |
@@ -531,7 +531,7 @@ $$
 | Chemistry                 | Li-SOCl₂                   | Flat voltage, low self-discharge, temperature range |
 | Self-discharge            | &lt; 1 %/year typ. @ 20 °C | Calendar life                                       |
 | Target $I_{\mathrm{avg}}$ | **&lt; 10 µA**             | Margin for cold, PCB leakage, ageing                |
-| BOD fuses                 | Off / 1.8 V class          | Avoid 2.7 V BOD lock as cell ages                   |
+| BOD fuses                 | Extended `0xFF` (disabled); `0xFE` = 1.8 V | Avoid the 2.7 V (`0xFD`) BOD lock as cell ages |
 | Supercap                  | **47 mF / 5.5 V + 1.2 kΩ series** | $\Delta V$≈127 mV; $I_\mathrm{max}$=3.0 mA; $\tau$=56.4 s; 5τ≈4.7 min ≪ 15 min |
 | Disconnect                | 2-pin jumper               | Zero drain in storage; no dirt-filled switch       |
 
@@ -603,14 +603,14 @@ flowchart LR
 
 ## E5 — Optimized RC Network for the TX Current Pulse
 ### Buffering the Rail Without Straining the Li-SOCl₂ Cell
-The LoRa PA pulse draws 120 mA for 50 ms. Bobbin-type Li-SOCl₂ cells cannot deliver this cleanly due to high internal resistance. A tuned **47 mF / 5.5 V** supercapacitor with a **1.2 kΩ series** resistor solves the constraint: topology is **cell → R → always-on rail || C → GND**, so TX current comes from **C** while charge current from the cell is limited by **R**.
+The LoRa PA pulse is budgeted at 120 mA for 50 ms (datasheet ~87 mA at +17 dBm; 120 mA at +20 dBm). Bobbin-type Li-SOCl₂ cells cannot deliver this cleanly due to high internal resistance. A tuned **47 mF / 5.5 V** supercapacitor with a **1.2 kΩ series** resistor solves the constraint: topology is **cell → R → always-on rail || C → GND**, so TX current comes from **C** while charge current from the cell is limited by **R**.
 
 **1. The 50 ms Discharge Profile:**
 
 $$\Delta Q = I \Delta t = 0.120\,\mathrm{A} \times 0.050\,\mathrm{s} = \mathbf{0.006\,\mathrm{C}}$$ 
 $$\Delta V = \frac{\Delta Q}{C} = \frac{0.006\,\mathrm{C}}{0.047\,\mathrm{F}} \approx \mathbf{0.127\,\mathrm{V}}\ (127\,\mathrm{mV})$$ 
 
-* Result: Ideal \(C\)-only dip ≈ 127 mV → rail ~3.47 V, clear of BOD. **Real EDLC ESR** adds \(I\cdot R_\mathrm{ESR}\) during the pulse — prefer a low-ESR 47 mF part and verify on the bench.
+* Result: Ideal \(C\)-only dip ≈ 127 mV → rail ~3.47 V, clear of a 2.7 V BOD. **Real EDLC ESR** adds \(I\cdot R_\mathrm{ESR}\) during the pulse — prefer a low-ESR 47 mF part and verify on the bench.
 
 **2. Cell Protection & Charging Dynamics:**
 
@@ -767,10 +767,11 @@ A compact helix on a controlled mandrel fits the capsule better than a straight 
 | Type | Helix |
 | Wire | Solid copper, cut ≈ **17.0 cm** |
 | Mandrel | **5 mm** |
-| Turns | ≈ **18–22** close-wound |
-| Wound height | ≈ **3.5 cm** (capsule headroom) |
+| Turns | ≈ **10–11** close-wound at ~3.2 mm pitch |
+| Wound height | ≈ **3.4 cm** (capsule headroom) |
 | Environment | Air cavity under top cap |
 | Feed | Short board ANT → **SMA-TH** |
+| Pigtail | **u.FL / IPEX → SMA** bulkhead (Ra-02 has no SMA) |
 
 ```mermaid
 flowchart TB
@@ -918,7 +919,7 @@ flowchart LR
 | Parameter            | Selected Decision     | Design Rationale                                                                    |
 | :------------------- | :-------------------- | :---------------------------------------------------------------------------------- |
 | **Device**           | **W25Q64** SPI NOR    | **64 Megabit = 8 Megabyte** total capacity.                                         |
-| **Record Structure** | **16 Bytes**          | 4-Byte Timestamp/ID + 12-Byte LoRa PDU payload.                                     |
+| **Record Structure** | **16 Bytes**          | 4-byte big-endian **record ID** (append counter, not wall-clock time) + 12-byte LoRa PDU. |
 | **Storage Policy**   | **Sequential Append** | Write sequentially; track current pointer; execute sector erase at 4 KB boundaries. |
 
 ### Storage Capacity Calculation
@@ -931,10 +932,10 @@ $$
 
 ---
 
-## I2 — Flash Storage: Wear Mitigation via Ring Buffer
+## I2 — Flash Storage: Wear Mitigation via Sequential Wrap
 
 ### Defeating the 100k Erase Cycle Limit without a Filesystem
-Standard SPI NOR flash cells degrade after 100,000 erase cycles. Modifying a single "hot" sector repeatedly will quickly destroy the chip. We implement a raw, sequential ring buffer to distribute wear evenly across the entire chip.
+Standard SPI NOR flash cells degrade after 100,000 erase cycles. Modifying a single "hot" sector repeatedly will quickly destroy the chip. The log writes sequentially and wraps by chip erase, so every sector carries the same share of wear.
 
 ### Wear-Leveling Math & Lifespan Projection
 
@@ -946,14 +947,16 @@ Standard SPI NOR flash cells degrade after 100,000 erase cycles. Modifying a sin
 ```mermaid
 flowchart LR
   Sector0[Sector 0] --> Sector1[Sector 1] --> SectorDot[...] --> Sector2047[Sector 2047]
-  Sector2047 -->|Roll over when full| Sector0
+  Sector2047 -->|Chip erase when full, restart at 0| Sector0
   classDef active fill:#2c3e50,stroke:#fff,stroke-width:2px,color:#fff;
 ```
 
 
 $$\text{Time to fill entire chip } (1 \text{ Full Pass}) = \frac{2048 \text{ sectors}}{3.75 \text{ sectors/day}} \approx \mathbf{546 \text{ days}}$$ 
 
-$$\text{Theoretical Chip Lifetime} = 546 \text{ days} \times 100,000 \text{ cycles} = \mathbf{149,589 \text{ years}}$$ 
+$$\text{Theoretical erase-cycle life} = 546 \text{ days} \times 100,000 \text{ cycles} \approx \mathbf{1.5\times10^5 \text{ years}}$$
+
+*Retention (20 years typical) and other failure modes, not erase cycles, bound the practical log life.*
 
 ### Architectural Decisions
 
@@ -1007,7 +1010,7 @@ flowchart LR
 
 | Topic             | Policy                               |
 | :---------------- | :----------------------------------- |
-| Node fuses        | L `0xE2`, H `0xDA`, E `0xFD`         |
+| Node fuses        | L `0xE2`, H `0xDA`, E `0xFF` (BOD off) |
 | Field programming | Not supported on the buried assembly |
 | Tower             | Separate 16 MHz crystal fuse recipe  |
 

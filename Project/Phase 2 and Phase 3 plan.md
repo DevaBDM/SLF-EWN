@@ -192,7 +192,7 @@ Not scheduled in detail until Phase 2 mid-point. Fine grain later; themes:
 | **Radio network** | Mesh / relay in valleys; multi-hop backhaul |
 | **Analytics** | ML / rules to cut false alarms; category templates bulk apply |
 | **Storage** | Production ring-buffer wear-leveling on W25Q64 |
-| **Parts** | LIS3DH drop-in if lower accel current required |
+| **Parts** | LIS3DH-class part if lower accel current required (footprint + driver change) |
 | **Compliance** | Move from IEC *feasibility* notes toward formal test evidence where required |
 | **Ops** | Multi-site host, hardened outdoor BOM, spares/pre-flash factory flow |
 

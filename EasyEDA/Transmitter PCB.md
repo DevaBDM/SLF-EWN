@@ -20,9 +20,16 @@ parent: "[[EasyEDA Hub]]"
 **Schematic** · **PCB** · **3D**
 
 ![[Schematic transmitter.png]]
+*Figure T1 — transmitter schematic export, Rev 1.0. Pre-fab; symbols show the LIS3DH-era footprint in places (H7).*
+
 ![[PCB_PCB_SingleLayer_SQUARE_2026-08-26.png]]
+*Figure T2 — transmitter 50 × 50 mm single-layer layout, Rev 1.0.*
+
 ![[Attachments/transmitter 3D PCB.png]]
+*Figure T3 — transmitter 3D top view, Rev 1.0.*
+
 ![[Attachments/transmitter 3D PCB back.png]]
+*Figure T4 — transmitter 3D bottom view, Rev 1.0.*
 
 ## Parts on this board
 
@@ -33,10 +40,10 @@ parent: "[[EasyEDA Hub]]"
 | Accel | **ADXL345** | `ADXL345` | Header | **Always on 3.6 V** (motion INT in sleep) |
 | Moisture | Capacitive v1.2 | `Capacitive Soil Moisture` | Edge pads | **VCC_SW** (FET-gated) |
 | FET | ZVP2106A | `ZVP2106A` | TO-92 | High-side switch for VCC_SW |
-| Series R | **1.2 kΩ** | — | Cell → always-on rail | Inrush limit 3.0 mA |
+| Series R | **1.2 kΩ** | — | Cell → always-on rail | Cell inrush limit 3.0 mA; load peaks come from the supercap |
 | Energy buffer | **47 mF / 5.5 V supercap** | — | After R, to GND | **TX only** — PA peak |
 | Cell | Li-SOCl₂ AA ~2400 mAh | — | Holder / wires | Primary energy |
-| Antenna | SMA-TH + helix | `SMA-TH` | Board edge | Air-pocket helix |
+| Antenna | SMA-TH + helix | `SMA-TH` | Board edge | Air-pocket helix; Ra-02 u.FL → SMA via short pigtail |
 | Disconnect | 2-pin header + shunt | — | Master power | Storage isolation |
 
 ### Power architecture (important)
@@ -103,7 +110,7 @@ Must match `transmitter.c` (DIP-28):
 
 Short, straight ANT → SMA **central pin**; chassis legs to GND. SMA search: `SMA-TH` or `SMA-JW-P` (90° preferred).
 
-Helix in an **air pocket**: cut **17.0 cm**, 5 mm mandrel, 18–22 turns, ~3.5 cm. Math: [[Project Overview#Radio]].
+Helix in an **air pocket**: cut **17.0 cm**, 5 mm mandrel, **10–11 close turns at ~3.2 mm pitch**, ~3.4 cm. Math: [[Project Overview#Radio]].
 
 **Stack inside the tube (top → soil):**
 

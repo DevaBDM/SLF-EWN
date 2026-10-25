@@ -31,12 +31,12 @@ A buried rectangle concentrates load at corners and faces; freeze–thaw opens c
 
 | Spec | Value |
 |:-----|:------|
-| Inner diameter | 50–75 mm (must clear **50×50 mm** TX PCB + SMA) |
-| Length | ~100 mm (PCB 50 mm + 35 mm clearance + 5 mm) |
+| Inner diameter | **75–80 mm** (clears the **70.7 mm diagonal** of the 50×50 mm TX PCB + SMA) |
+| Length | ~120 mm (PCB 50 mm + cell/air pocket + caps) |
 | Wall | 3–5 mm |
 | Rating | IP68-class seals (O-rings, epoxy at probe exit) |
 
-Typical shop pipe: ~**50 × 100 mm** (50×50 mm PCB + 35 mm clearance + 5 mm).
+Typical shop pipe: ~**75–80 mm ID × 120 mm** (a 50 mm ID tube cannot fit a 50×50 mm board).
 
 ### Stack (print this)
 
@@ -52,7 +52,7 @@ Top cap (gasket, removable)
 Bottom cap (permanent after potting)
 ```
 
-Helix: ~17 cm wire, ~3.5 cm wound height, **in air**, coil axis **vertical**.
+Helix: ~17 cm wire, ~3.4 cm wound height (10–11 turns, 5 mm mandrel), **in air**, coil axis **vertical**.
 
 Inside the sealed volume: PCB traces and soldered probe wires only — **no extra connectors**.
 
@@ -81,7 +81,7 @@ Inside the sealed volume: PCB traces and soldered probe wires only — **no extr
 Import the SolidWorks / EasyEDA model. **Do not** change millimetres here.
 
 1. Export OBJ/STEP from EasyEDA or SolidWorks.  
-2. Scale check: TX board **50 × 50 mm**. Capsule ID **50–75 mm**, length **~100 mm (50 + 35 + 5)**, wall **3–5 mm**.  
+2. Scale check: TX board **50 × 50 mm**. Capsule ID **75–80 mm**, length **~120 mm**, wall **3–5 mm**.
 3. Node centroid at **1 m** depth; tower antenna feed at **1.5–2 m**.  
 4. Helix **in an air pocket**, coil axis **vertical** — optional still: bare wire in clay (detuned) vs pocket (correct).  
 5. Five nodes, unique positions, **one** tower; no mesh, no phone client.  
@@ -92,10 +92,10 @@ Import the SolidWorks / EasyEDA model. **Do not** change millimetres here.
 | Shot | Show |
 |:-----|:-----|
 | Burial cutaway | Tube, PCB stack, moisture blade in soil |
-| Grid | Five nodes + tower, 200–500 m surface idea |
+| Grid | Five nodes + tower, 100–200 m surface idea |
 | Antenna | Helix in air vs clay |
 | Scale | Hand / AA cell next to 50 mm board |
 | Tower | Weather box, pole, omni whip |
 | Why cylinder | Auger hole vs rectangle cracking at corners |
 
-Story: moisture + tilt underground → 433 MHz through soil (~20–40 dB in the first metre) → tower W25Q64 → USB → Qt dashboard.
+Story: moisture + tilt underground → 433 MHz through soil (~10–40 dB in the first metre) → tower W25Q64 → USB → Qt dashboard.

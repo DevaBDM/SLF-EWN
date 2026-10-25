@@ -61,15 +61,17 @@ sequenceDiagram
 2. Point TX COMPIM and RX COMPIM at pair 1.  
 3. Point tower UART COMPIM at pair 2, dashboard at the other end. **Wire DTR and RTS** on the COMPIM or some Qt builds wait forever.  
 4. Run both sheets + dashboard. Dashboard must **poll** (`'S'` / `'D'`), not wait for a 12-byte stream.  
-5. Move moisture pot → next dump shows moisture. Move accel pots past threshold → status `0x80`.
+5. Move moisture pot → next dump shows moisture. Move accel pots past the activity threshold → emergency wake, status `0x80`.
 
-Packet path COMPIM is **9600 8N1 raw 12 bytes** (fake LoRa TX UART), not 115200. Dashboard COMPIM is **115200**.
+If the dump is empty while frames arrive on the fake RX, check the F4 flash caveat first: the 25AA1024 stand-in does not answer the W25Q64 JEDEC ID.
+
+Packet path COMPIM is **9600 8N1 raw 12 bytes** (fake LoRa TX UART), not 115200. Dashboard COMPIM is set to **115200**, but the tower firmware actually generates **111.1 kbaud** (H9); if the sim shows framing errors, match the COMPIM to the measured rate.
 
 `transmitter.c` has **`SIM_FAST_WAKE 1`** → ~8 s cycles. Fine for sim; undef for burial.
 
-Multi-node: extra TX sheets with different `DEVICE_ID`. Overlapping ANT bytes → CRC fail on fake RX (`[CRC FAIL]`). **No ID jitter in code yet.**
+Multi-node: extra TX sheets with different `DEVICE_ID`. Overlapping ANT bytes → CRC fail on fake RX (`[CRC FAIL]`). **ID jitter is implemented** in `transmitter.c` (`T_i = 15 min + id % 30 s`, quantised to 8 s WDT ticks); `SIM_FAST_WAKE` still collapses that to ~8 s, so sim collisions remain possible.
 
-Pin-level COMPIM: [[Receiver Simulation#COMPIM]].
+Pin-level COMPIM: [[Receiver Simulation#COMPIM (serial bridge to Qt dashboard)]].
 
 ---
 
@@ -108,7 +110,7 @@ There is **no** ASCII `[RADIO TX ANT OUT] -> NODE01_DATA:...` in this file.
 
 ### Fake LoRa RX (`fake_lora_receiver.c`)
 
-UART **9600** RX = ANT (must match TX). Collect **exactly 12 bytes**. CRC ok → debug `>>> OK node=.. seq=..`, preload `SPDR` with `frame[0]`, **DIO0 PD3 HIGH**. Master (`receiver.c`) uses **Mode 1**, clocks 12 bytes, then slave drops DIO0, prints `>>> delivered`. CRC fail → `[CRC FAIL]`, no DIO0.
+UART **9600** RX = ANT (must match TX). Collect **exactly 12 bytes**. CRC ok → debug `>>> OK node=.. seq=..`, preload `SPDR` with `frame[0]`, **DIO0 PD3 HIGH**. The fake is **Mode 1**; production `receiver_radio.c` is **Mode 0** for the real SX1278. The pair has run in the sheet, but confirm the mode if the fake is rebuilt. It clocks 12 bytes, then the slave drops DIO0 and prints `>>> delivered`. CRC fail → `[CRC FAIL]`, no DIO0.
 
 ### Fake ADXL345 accelerometer (`fake_accelerometer.c`)
 
@@ -130,7 +132,7 @@ SPI **Mode 3** (matches real ADXL345). `DEVID` `0x00` → **`0xE5`**. Axes are *
 
 Slave: **Mode 3** SPI (`CPOL=1`, `CPHA=1`), first byte addr `& 0x7F` (read), preload response byte. Second byte is data. CS = PB2/SS, PCINT2 tri-states MISO on CS high.
 
-Master FET **PD4** HIGH must drop `VCC_SW` (accel VCC). Do not confuse with moisture ADC pins.
+Master FET **PD4** HIGH must drop `VCC_SW`, which feeds **moisture and Ra-02 only**. The **ADXL345 stays on the always-on 3.6 V rail** so its activity interrupt can wake the MCU. Do not confuse the gate with the moisture ADC pin.
 
 ---
 

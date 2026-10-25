@@ -29,11 +29,11 @@ From each 16-byte dump record: RID u32 BE, then the 12-byte LoRa frame.
 |:------|:---|
 | Device ID u16 | Label **`NODE<n>`** if id **&lt; `0xA000`**, else 4-digit hex. Example `0x0104` → `NODE104` |
 | Moisture 0–10000 | Percent = value / 100. Defaults warn **38 %**, critical **58 %** |
-| Tilt X/Y/Z i16 | Radio raw **−1950…1950 → −180°…180°**. Alarm uses **max(\|X\|, \|Y\|, \|Z\|)** in degrees vs 8° / 16° |
+| Tilt X/Y/Z i16 | Raw ADXL345 counts: **3.9 mg/LSB**, **1 g ≈ 256 counts**, full-resolution ±2 g ≈ ±512. Angle per axis = `asin(clamp(raw / 256, −1, 1)) × 180/π` (≈ ±90°). Alarm uses **max(\|X\|, \|Y\|, \|Z\|)** vs 8° / 16° |
 | Status `0x80` | **Emergency-Interrupt** — CRITICAL even if moisture/tilt are green |
 | Record ID u32 | Cursor for INCREMENTAL `'N'`; not wall-clock time |
 
-Firmware still packs XYZ as `(reg8 - 128) * 15` (about ±1920), which sits in that −1950…1950 window. [[Firmware Hub#Data formats]].
+The node sends **raw counts**, not pre-scaled degrees. The older linear “−1950…1950 → −180…180” mapping is not physically correct and is tracked as **F9** on [[Status and open issues]]. [[Firmware Hub#Data formats]].
 
 Simulation writes the **same 12-byte layout**. SQLite: telemetry, alerts, node profiles, **places**, accounts. Flush ~4 s.
 
@@ -120,7 +120,9 @@ Hardware `0x80` → Emergency-Interrupt.
 
 ## Serial (receiver v1.0)
 
-**115200 8N1**, no flow control. DTR + RTS on open.
+**115200 8N1** host setting, no flow control. DTR + RTS on open.
+
+> **Baud caveat (H9).** `receiver.c` currently produces **111.1 kbaud** at 16 MHz (`uart_init(8)`, `U2X = 0`). The current simulation tolerates it, but the firmware should be corrected before the baud is quoted as compliant.
 
 **Host → receiver**
 
@@ -129,11 +131,11 @@ Hardware `0x80` → Emergency-Interrupt.
 | `0x53` `'S'` | STATUS | none |
 | `0x44` `'D'` | FULL_DUMP | none |
 | `0x4E` `'N'` | INCREMENTAL | 4-byte BE last RID |
-| `0x43` `'C'` | CLEAR | none (EEPROM wipe; next RID 0) |
+| `0x43` `'C'` | CLEAR | none (W25Q64 chip erase; next RID 0) |
 
 **Receiver → host:** `0xAA \| cmd \| uint32be length \| payload`
 
-STATUS: 8 B `write_count` + `free_records`. DUMP: `N × 16` records. CLEAR: empty. ERROR `0xFF`: 1 B (`0x02` = timeout / bad payload).
+STATUS: 8 B `record_count` + `free_records`. DUMP: `N × 16` records. CLEAR: empty. ERROR `0xFF`: 1 B (`0x01` = unknown command, `0x02` = timeout / bad payload).
 
 Must match [[Firmware Hub#Data formats]] / `receiver.c`.
 
@@ -233,7 +235,7 @@ Full multi-path context: [[Data path future architecture]].
 | Bar says `SIMULATION` | Uncheck Link → simulation |
 | Bytes ↑, frames = 0 | Wait for `0xAA` + length; check dump phase |
 | No new cards | Tower does not push; Refresh / `'N'` |
-| Dump empty | Air CRC fail, or flash full |
+| Dump empty | Air CRC fail, CLEAR just ran, or no frames logged yet |
 | Map blank | Network / tile cache; set node lat/lon |
 | Settings gray | Guest session |
 | Locked | 30 s after 5 failed logins |

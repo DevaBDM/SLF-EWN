@@ -16,7 +16,7 @@ status: active
 
 Buried moisture + tilt → 12-byte LoRa frame → tower flash (16-byte records) → Qt **polls** USB.
 
-This page is the **map**: vault tree, data flow, then links. Pin tables live on the TX/RX notes. Bytes live on [[Firmware Hub]]. Gaps live on [[Status and open issues]].
+This page is the **map**: vault tree, data flow, then links. Pin tables live on the TX/RX notes. Bytes live on [[Firmware Hub]]. Gaps live on [[Status and open issues]]. For the INSA 2026 package, start at [[Submission Checklist]].
 
 ---
 
@@ -36,7 +36,9 @@ artifacts/
 ├── Dashboard/Dashboard Hub.md
 ├── Project/
 │   ├── Project Overview.md     decisions, BOM, team, constraints, IEC
-│   ├── Full Proposal.md        formal write-up
+│   ├── Full Proposal.md        formal technical report (submission)
+│   ├── Challenges and Solutions.md · Challenges Presentation Script.md
+│   ├── Submission Checklist.md package index and sign-off
 │   ├── Mentor readiness.md     feasibility and standards notes
 │   └── Status and open issues.md
 ├── SOLIDWORKS/
@@ -55,7 +57,7 @@ artifacts/
 | Copper / BOM photos | [[Transmitter PCB]] · [[Receiver PCB]] |
 | Qt UI / map / Places | [[Dashboard Hub]] |
 | Decisions / BOM / radio / team | [[Project Overview]] |
-| IEC feasibility (review) | [[Project Overview#IEC standards and feasibility]] · [[Full Proposal#7.3 IEC standards and feasibility]] |
+| IEC feasibility (review) | [[Project Overview#IEC standards and feasibility]] · [[Full Proposal#8. Standards and feasibility]] |
 | Feasibility notes (FAQ) | [[Mentor readiness]] |
 | Phase-2 data paths (LoRa backhaul, handheld) | [[Data path future architecture]] |
 | Phase 2 / 3 fine-grained plan | [[Phase 2 and Phase 3 plan]] |
@@ -112,7 +114,7 @@ Field hardware: same 12-byte payload on Ra-02; no `0x8D` UART hop.
 | Fake ANT / COMPIM pair 1 | **9600** 8N1 | same 12 bytes, raw |
 | Fake LoRa → tower | SPI Mode **1** | same 12 bytes |
 | Flash | SPI Mode **0** | **16 B** = RID u32 + 12 B |
-| Tower ↔ Qt / COMPIM pair 2 | **115200** 8N1 | `0xAA` header + payload; PC **polls** |
+| Tower ↔ Qt / COMPIM pair 2 | **115200** 8N1 host setting (111.1 kbaud actual — H9) | `0xAA` header + payload; PC **polls** |
 
 Format tables: [[Firmware Hub#Data formats]]. End-to-end click path: [[Proteus Hub#End-to-end test]].
 
@@ -143,7 +145,7 @@ Full maps: [[Transmitter Simulation]] · [[Receiver Simulation]]. Must match `Co
 | **PB2** | Radio CS |
 | **PB1** | Flash CS |
 | **PD2 INT0** | Radio DIO0 RX-ready, rising |
-| PD1 / PD0 | UART 115200 to FTDI (TX / RX) |
+| PD1 / PD0 | UART 115200 host setting (111.1 kbaud actual — H9) to FTDI |
 
 ---
 
@@ -159,6 +161,7 @@ Full maps: [[Transmitter Simulation]] · [[Receiver Simulation]]. Must match `Co
 | Capsule + film | [[Mechanical Hub]] |
 | Decisions / BOM / team | [[Project Overview]] |
 | Formal write-up | [[Full Proposal]] |
+| Submission package / sign-off | [[Submission Checklist]] |
 | Challenges / design math | [[Challenges and Solutions]] |
 | Phase / open issues | [[Status and open issues]] |
 

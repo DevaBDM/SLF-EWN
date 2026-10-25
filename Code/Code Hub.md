@@ -62,7 +62,7 @@ AVR-GCC C. **No Arduino core.** One `.c` / `.h` per device, coordinators only se
 | MCU / language | ATmega328P, bare-metal AVR-GCC C | All production `.c` |
 | Node clock | 8 MHz internal RC | `transmitter*.c` `F_CPU` |
 | Tower clock | 16 MHz crystal | `receiver*.c` `F_CPU` |
-| Accelerometer | **ADXL345** (`DEVID` 0xE5). **Always-on 3.6 V rail.** Low-power ACTIVITY mode in hibernation; 100 Hz measure only when sampling. LIS3DH future drop-in | `transmitter_accelerometer.c` |
+| Accelerometer | **ADXL345** (`DEVID` 0xE5). **Always-on 3.6 V rail.** Low-power ACTIVITY mode in hibernation; 100 Hz measure only when sampling. LIS3DH future option (new footprint + driver) | `transmitter_accelerometer.c` |
 | Radio | **Ra-02 / SX1278**, full register drivers | `transmitter_lora.c`, `receiver_radio.c` |
 | RF air config | 433.0 MHz, SF7, BW 125 kHz, CR 4/5, CRC on, sync `0x12`, preamble 8 | Both LoRa modules (must match) |
 | Tower log | **W25Q64** SPI NOR, no FAT | `receiver_storage.c` |
@@ -72,7 +72,7 @@ AVR-GCC C. **No Arduino core.** One `.c` / `.h` per device, coordinators only se
 | Sleep | Power-down + WDT 8 s; base **15 min** + **`(id % 30) s`** stagger; `SIM_FAST_WAKE 1` for Proteus only | `transmitter.c` |
 | Air frame | Fixed **12 bytes** + CRC-8 (poly-style `0x07`) | `Common/slf_protocol.*` |
 | Flash record | **16 bytes** = 4-byte record id + 12-byte frame | Storage + Qt |
-| Dashboard link | UART **115200**, poll commands `'S'`/`'D'`/`'N'`/`'C'`, replies start with **`0xAA`** | `receiver.c` |
+| Dashboard link | UART **115200 host setting** (111.1 kbaud actual at 16 MHz — H9), poll commands `'S'`/`'D'`/`'N'`/`'C'`, replies start with **`0xAA`** | `receiver.c` |
 | Default node ID | `0x0104` | `transmitter.c` |
 | Proteus | Separate **fake** MCU firmwares; **not** linked into production `.hex` | `fake_*.c` |
 
@@ -125,7 +125,7 @@ Pins (tower) — **must match** [[EasyEDA Hub#Receiver — definitive connection
 | Radio CS | PB2 |
 | SPI MOSI/MISO/SCK | PB3 / PB4 / PB5 |
 | Radio DIO0 RxDone (INT0) | PD2 |
-| UART to FT232 / Qt | PD0/PD1 @ **115200** |
+| UART to FT232 / Qt | PD0/PD1 @ **115200** host setting (111.1 kbaud actual — H9) |
 | Crystal | PB6/PB7 · 16 MHz |
 
 ### Shared protocol
@@ -259,7 +259,7 @@ Every reply header: **`0xAA`**, command, 32-bit big-endian length, then payload.
 2. Mode **RXCONTINUOUS**.
 3. INT0: read `RegIrqFlags`; reject CRC error; `RegRxNbBytes` + `RegFifoRxCurrentAddr` → read FIFO → re-arm continuous RX.
 
-Proteus without a Ra-02 model still uses the old fake chain: node SPI `0x8D`+12 B → fake TX UART ANT @ 9600 → fake RX → DIO0 → tower clocks 12 B (Mode 1). **That path is sim-only**; production `.hex` speaks real registers.
+Proteus without a Ra-02 model still uses the old fake chain: node SPI `0x8D`+12 B → fake TX UART ANT @ 9600 → fake RX → DIO0 → tower clocks 12 B (Mode 1 fake). **That path is sim-only**; production `.hex` speaks real registers in **Mode 0**.
 
 ---
 
@@ -286,7 +286,7 @@ Spreads erase cycles across the full 8 MB instead of one hot sector (~100k cycle
 
 SPI protocol for ADXL345: Mode 3, bit7=read, bit6=multi-byte, `DATAX0` burst. Fake accelerometer emulates the same map for Proteus.
 
-If LIS3DH becomes available, only `transmitter_accelerometer.c` + fake need to change; coordinator API stays `init` / `read(int16_t*)`.
+If LIS3DH becomes available, `transmitter_accelerometer.c` and its fake need to change, and the PCB footprint must change with them; the coordinator API stays `init` / `read(int16_t*)`.
 
 ---
 
@@ -309,13 +309,13 @@ If LIS3DH becomes available, only `transmitter_accelerometer.c` + fake need to c
 2. Through-soil / air LoRa.  
 3. Tower SX1278 RxDone → FIFO read 12 B.  
 4. CRC → append 16 B record on W25Q64.  
-5. Qt polls UART 115200 (`S`/`D`/`N`/`C`); replies `0xAA`….
+5. Qt polls the UART at 115200 (`S`/`D`/`N`/`C`); the tower firmware currently generates 111.1 kbaud (H9). Replies start `0xAA`.
 
 **Proteus (no Ra-02 model)**
 
 1. Node SPI `0x8D` + 12 B → fake LoRa TX.  
 2. Fake TX UART 12 B @ 9600 (ANT).  
-3. Fake RX CRC → DIO0 → tower SPI Mode 1 clock-out 12 B.  
+3. Fake RX CRC → DIO0 → tower SPI Mode 1 clock-out 12 B (fake only; production is Mode 0).
 4–5. Same storage + Qt path.
 
 Same 12-byte payload either way; only the radio device modules differ.

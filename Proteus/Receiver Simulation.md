@@ -10,7 +10,7 @@ parent: "[[Proteus Hub]]"
 
 5 V USB, 16 MHz, **no FET**. Masters: [[receiver.c]]. Fake radio: [[fake_lora_receiver.c]]. Both sheets: [[Proteus Hub#End-to-end test]]. PCB: [[Receiver PCB]].
 
-Fake LoRa = extra ATmega328P. Flash = **25AA1024**. USB = **COMPIM**. `receiver.c` already skips NOR erase (EEPROM-style writes).
+Fake LoRa = extra ATmega328P. Flash = **25AA1024** EEPROM stand-in. USB = **COMPIM**. The EEPROM needs no erase; the production driver still issues NOR sector-erase commands, which the stand-in ignores.
 
 ---
 
@@ -25,7 +25,7 @@ Fake LoRa = extra ATmega328P. Flash = **25AA1024**. USB = **COMPIM**. `receiver.
 | PD2 `RADIO_DIO0_PIN` | INT0 | DIO0 | RX frame ready |
 
 Slave UART RX = ANT link at **9600 baud**, 12 binary bytes per frame. 
-SPI **Mode 1** (CPHA=1). After CRC valid, DIO0 stays high until 12 SPI clocks transfer the frame. See [[Proteus Hub#Fake LoRa RX]].
+SPI **Mode 1** (CPHA=1) for the fake. Production `receiver_radio.c` uses Mode 0 for the real SX1278 (F5). After CRC valid, DIO0 stays high until 12 SPI clocks transfer the frame. See [[Proteus Hub#Fake LoRa RX (`fake_lora_receiver.c`)]].
 
 ---
 
@@ -40,7 +40,9 @@ SPI **Mode 1** (CPHA=1). After CRC valid, DIO0 stays high until 12 SPI clocks tr
 | — | — | WP (pin 3) | 10 kΩ → VCC (write protect off) |
 | — | — | HOLD (pin 7) | 10 kΩ → VCC (hold off) |
 
-SPI **Mode 0**. Stores records at `0x000010`, 16 bytes each. Record ID is appended to each frame at flash write time. See [[Firmware Hub#Surface tower (receiver)]]. Stands in for W25Q64 SPI NOR flash on production PCB.
+SPI **Mode 0**. Stores records at `0x000000` (record 0), 16 bytes each — no header. Record ID is appended to each frame at flash write time. See [[Firmware Hub#Surface tower (`receiver.c`)]]. Stands in for W25Q64 SPI NOR flash on production PCB.
+
+> **Sim caveat.** The production driver checks JEDEC ID `EF 40 17` and uses NOR sector erase (`0x20`). The 25AA1024 is an EEPROM with neither the Winbond ID nor sector erase, so the simulation only logs if the sim build bypasses the JEDEC check (or the model is patched). Verify which build the Proteus sheet uses before treating flash append/dump as demonstrated.
 
 ---
 
@@ -67,7 +69,7 @@ On production PCB, both links are 3.3 V and go through an FT232RL. Proteus uses 
 
 ## Design notes
 
-- Record ID is **`write_count`**, not a millisecond timestamp. Fake RX does not stamp.
+- Record ID is **`record_count`**, not a millisecond timestamp. Fake RX does not stamp.
 - Fake RX waits for **12 binary bytes** then CRC — overlapping TX sheets corrupt the 12-byte window (`[CRC FAIL]`).
 - Dashboard must **poll**; nothing is pushed on UART when a LoRa frame arrives.
 

@@ -2,17 +2,20 @@
 
 Obsidian-style vault for the **Subterranean Landslide and Flood Early-Warning Network**.
 
+**Submission package:** INSA 2026 — 5th Round Summer Camp · Group 1 · Embedded Department. Start with [[Submission Checklist]].
+
 ## Start here
 
 | Page | Purpose |
 |:-----|:--------|
+| **[[Submission Checklist]]** | Package contents, reading order, pre-submission checks, claims to avoid |
+| **[[Full Proposal]]** | Formal technical report (submission draft) |
+| **[[Challenges and Solutions]]** | Presentation: problems, math, fixes, open work |
 | **[[SLF-EWN Hub]]** | Map of content, data flow, pin glance, team |
 | **[[Project Overview]]** | Decisions table (wins on conflicts), BOM, radio, team |
 | **[[Status and open issues]]** | Phase status and tracked gaps |
 | **[[Code Hub]]** | As-built AVR sources — wins over older prose |
 | **[[Firmware Hub]]** | 12-byte / 16-byte formats, status bits, WDT |
-| **[[Full Proposal]]** | Formal write-up |
-| **[[Challenges and Solutions]]** | Presentation: problems, math, fixes, open work |
 
 ## Rule of truth
 
@@ -27,10 +30,12 @@ Obsidian-style vault for the **Subterranean Landslide and Flood Early-Warning Ne
 artifacts/
 ├── SLF-EWN Hub.md · README.md
 ├── Code/ · Firmware/ · Proteus/ · EasyEDA/ · Dashboard/
-├── Project/   (Overview, Full Proposal, Challenges, Status)
+├── Project/   (Overview, Full Proposal, Challenges, Status, Submission Checklist)
 ├── SOLIDWORKS/Mechanical Hub.md   (capsule + film)
 ├── Blender/   (stub → Mechanical Hub)
 └── Archive/   (old drafts only)
 ```
 
-**As-built stack:** ADXL345 + capacitive moisture → 12-byte LoRa frame (Ra-02) → tower W25Q64 (16-byte records) → Qt polls USB @ 115200.
+**As-built stack:** ADXL345 + capacitive moisture → 12-byte LoRa frame (Ra-02, 433 MHz SF7) → tower W25Q64 (16-byte records) → Qt polls USB.
+
+**Status in one line:** simulation-validated; hardware not fabricated; range, sleep current, and through-soil loss are still open. Do not describe the build as field-proven.

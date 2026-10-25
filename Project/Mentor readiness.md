@@ -17,7 +17,7 @@ status: active
 
 Working notes on the questions that come up when the design is checked for feasibility: standards, radio rules, safety, cost, power, RF, ethics, and what is still unproven.
 
-Last updated: 2026-10-06.
+Last updated: 2026-10-25.
 
 ---
 
@@ -41,7 +41,7 @@ Last updated: 2026-10-06.
 
 ## 2. Standards (IEC / ISO)
 
-Full tables: [[Project Overview#IEC standards and feasibility]] · [[Full Proposal#7.3 IEC standards and feasibility]].
+Full tables: [[Project Overview#IEC standards and feasibility]] · [[Full Proposal#8. Standards and feasibility]].
 
 | Domain | Reference | Feasible? |
 |:-------|:----------|:---------:|
@@ -163,7 +163,7 @@ Can people rely on this tomorrow? Not as a sole certified system. As a validated
 | Sleep current too high | High | Measure H3; clear F1 |
 | Soil RF fails link | High | Barrel/pit test H4; antenna air pocket |
 | Moisture polarity wrong | Medium | F3 invert/calibrate |
-| Multi-node collisions | Medium | F2 jitter |
+| Multi-node collisions | Medium | F2 jitter implemented (`15 min + id % 30 s`); CRC drops residual overlaps |
 | Seal fails underground | High | Mechanical + IP-oriented potting |
 | PCB never fabbed | High | H1 |
 | Over-claiming safety | Medium | §9 language discipline |

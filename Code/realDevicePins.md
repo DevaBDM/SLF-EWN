@@ -1,4 +1,4 @@
-> **As-built:** ADXL345. The LIS3DH pinout is kept for reference only (future drop-in).
+> **As-built:** ADXL345. The LIS3DH pinout is kept for reference only (future option; different footprint).
 
 # Device pinouts
 

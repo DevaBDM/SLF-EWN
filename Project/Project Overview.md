@@ -12,7 +12,7 @@ parent: "[[SLF-EWN Hub]]"
 
 # Project overview
 
-← [[SLF-EWN Hub]] · Formal text: [[Full Proposal]] · Design challenges: [[Challenges and Solutions]] · Live gaps: [[Status and open issues]] · Standards: [[Project Overview#IEC standards and feasibility]] · Feasibility notes: [[Mentor readiness]]
+← [[SLF-EWN Hub]] · Submission package: [[Submission Checklist]] · Formal text: [[Full Proposal]] · Design challenges: [[Challenges and Solutions]] · Live gaps: [[Status and open issues]] · Standards: [[Project Overview#IEC standards and feasibility]] · Feasibility notes: [[Mentor readiness]]
 
 Buried nodes at **1 m**, **ADXL345** + capacitive moisture, **Ra-02** 433 MHz through soil, tower **W25Q64** + USB, **Qt 6 / QML**. Life target **3–7 years**. Five or more nodes per tower.
 
@@ -34,7 +34,7 @@ When notes disagree, **this table wins.** Archive drafts that still say LIS3DH, 
 | CAD | Blender as the enclosure | **SolidWorks** print · Blender film |
 | Firmware | Arduino core / one `.ino` / third-party device libs | **AVR-GCC C**, self-written drivers; only toolchain `.h` (avr/*, stdint, string) — [[Code Hub#Self-implemented firmware (supply-chain / trust policy)]] |
 
-Shop stocks **ADXL345**; code and fakes target `DEVID 0xE5`. LIS3DH (~2 µA) remains a future drop-in if available — only `transmitter_accelerometer.c` + fake would change.
+Shop stocks **ADXL345**; code and fakes target `DEVID 0xE5`. LIS3DH (~2 µA) remains a future option if available, but it is a different LGA footprint as well as a driver change — it is not a pin-compatible swap.
 
 ---
 
@@ -45,10 +45,10 @@ Surface rain gauges and cameras see failure late. Subsurface moisture and deform
 **Contributions this build actually makes:**
 
 - Pre-flash on an ISP jig — **no ICSP** on the buried board (no 5 V programmer on a 3.6 V cell).
-- **99.9%** hibernation: FET-gates **moisture + LoRa only**; ADXL345 stays on always-on rail for INT; WDT 15 min.
+- **99.9%** hibernation: FET-gates **moisture + LoRa only**; ADXL345 stays on always-on rail for INT; WDT-ticked 15 min interval.
 - Tower **W25Q64** log so the PC can be unplugged.
 - Qt 6 / QML that **polls** the tower UART (`0xAA`) **or** runs simulation (never mixed).
-- Proteus fake SPI slaves so the **same `.hex`** is used in sim and in the DIP-28.
+- Proteus fake SPI slaves so the node loop and frame builder run in simulation; the `0x8D` radio path is sim-only (F5).
 
 ---
 
@@ -65,7 +65,7 @@ Surface rain gauges and cameras see failure late. Subsurface moisture and deform
 
 1. **Dashboard:** practical engineering UI (SAFE / WARNING / CRITICAL). Qt 6 + QML. Match [[Firmware Hub#Data formats]] — no second protocol.  
 2. **PCB:** one copper layer; crossings = jumper or top-side solder blob. 100% THT. Socket the MCU; female headers for Ra-02.  
-3. **Firmware:** bare-metal AVR-GCC (no Arduino). Same master `.hex` in Proteus and in the socket. Change pins/bytes only in [[Firmware Hub]] / `Code/`, then the matching sim or PCB note.
+3. **Firmware:** bare-metal AVR-GCC (no Arduino). One source tree for the sim and the socket; the LoRa driver uses the fake `0x8D` path only in simulation (F5). Change pins/bytes only in [[Firmware Hub]] / `Code/`, then the matching sim or PCB note.
 
 ---
 
@@ -73,7 +73,7 @@ Surface rain gauges and cameras see failure late. Subsurface moisture and deform
 
 **Node (as in `transmitter.c`).** Hibernate (WDT 8 s ticks; **`SIM_FAST_WAKE` → 1 tick in the sim build only**) **or** INT0 → sample → 12-byte CRC frame → LoRa TX → sleep. Production path uses **SX1278 registers** (not Proteus `0x8D`). Stagger: **15 min + (id % 30) s**. Default ID **`0x0104`**. 
 
-**Tower (`receiver.c`).** DIO0 ISR clocks 12 bytes (SPI Mode 1) → CRC → 16-byte flash record. PC **polls** UART 115200 (`0xAA` replies). Unplugged PC: still logs until the 128 KB stand-in is full.
+**Tower (`receiver.c`).** DIO0 ISR clocks 12 bytes (Mode 0 for the real SX1278; the Proteus fake is Mode 1) → CRC → 16-byte flash record. The dashboard **polls** at 115200 (`0xAA` replies); the firmware currently generates 111.1 kbaud (H9). Unplugged PC: still logs to the 8 MB W25Q64 (~524,288 records); when full, a chip erase restarts the log.
 
 Bytes: [[Firmware Hub#Data formats]]. Pins: [[Transmitter Simulation]] / [[Receiver Simulation]]. Sources: [[Code Hub]]. Flow: [[SLF-EWN Hub#Data flow (as built)]].
 
@@ -110,11 +110,12 @@ Bytes: [[Firmware Hub#Data formats]]. Pins: [[Transmitter Simulation]] / [[Recei
 | Supercap 47 mF / 5.5 V | 1 | 1.20 |
 | Series R 1.2 kΩ (charge limit) | 1 | 0.05 |
 | FR-4 1-layer 50×50 mm | 1 | 2.00 |
-| PVC ~50×100 mm + caps | 1 | 3.00 |
+| PVC ~75–80 mm ID × 120 mm + caps | 1 | 3.00 |
 | SMA-TH + female 2.54 mm headers | — | 1.40 |
 | Passives (~15) | — | 1.50 |
+| 2-pin jumper + 17 cm helix wire | — | 0.25 |
 
-Plus helix wire (~17 cm) and 2-pin power jumper.
+The 2-pin jumper is the master disconnect; the helix is ~17 cm of solid copper.
 
 ### Surface tower (~$15.50)
 
@@ -141,11 +142,11 @@ Shared jig: Arduino as ISP ~$25 (one for the lab). Optional outdoor 433 MHz whip
 - **−60…+85 °C** — buried temperature swings.
 - **Flat** voltage until end of life — simpler brown-out story than Li-ion sag.
 
-TX peaks **~120 mA** for ~50 ms (SF7 class ToA). A thionyl cell cannot source that peak cleanly, so the **transmitter** uses an RC buffer: **1.2 kΩ series** from the cell, then **47 mF / 5.5 V** on the always-on rail. Math (same as challenges **E5**): $\Delta Q = 0.006\,\mathrm{C}$, $\Delta V \approx 127\,\mathrm{mV}$, $I_\mathrm{max} = 3.0\,\mathrm{mA}$, $\tau = 56.4\,\mathrm{s}$, $5\tau \approx 4.7\,\mathrm{min} \ll 15\,\mathrm{min}$. Do **not** use a 2.7 V or 3.6 V memory-backup cap on a 3.6 V cell. The **receiver does not use this network** (USB-powered). See [[EasyEDA Hub#Circuit decisions (TX vs RX)]] · [[Challenges and Solutions#E5]].
+TX peaks **~120 mA** for ~50 ms (SF7 class ToA). A thionyl cell cannot source that peak cleanly, so the **transmitter** uses an RC buffer: **1.2 kΩ series** from the cell, then **47 mF / 5.5 V** on the always-on rail. Math (same as challenges **E5**): $\Delta Q = 0.006\,\mathrm{C}$, $\Delta V \approx 127\,\mathrm{mV}$, $I_\mathrm{max} = 3.0\,\mathrm{mA}$, $\tau = 56.4\,\mathrm{s}$, $5\tau \approx 4.7\,\mathrm{min} \ll 15\,\mathrm{min}$. Do **not** use a 2.7 V or 3.6 V memory-backup cap on a 3.6 V cell. The **receiver does not use this network** (USB-powered). See [[EasyEDA Hub#Circuit decisions (TX vs RX) — final]] · [[Challenges and Solutions#E5 — Optimized RC Network for the TX Current Pulse]].
 
 **2-pin jumper (master disconnect):** storage and shipping (zero drain), safe handling while inserting the socketed MCU, no slide switch to fill with dirt.
 
-BOD: Arduino factory 4.3 V / 2.7 V will **lock** the chip as the cell ages. Buried fuses: [[Firmware Hub#Pre-flash (off the PCB)]].
+BOD: the Arduino factory 2.7 V setting (`0xFD`) will **lock** the chip as the cell ages. Buried fuses: [[Firmware Hub#Pre-flash (off the PCB)]].
 
 **Tower:** USB 5 V → LM1117-3.3. Optional battery is backup, not the primary design. Simulation may omit the regulator (5 V parts). Real Ra-02 on the PCB needs 3.3 V.
 
@@ -158,13 +159,13 @@ Open-air LoRa can be **10–15 km**. Soil is a different channel.
 | Effect | What happens |
 |:-------|:-------------|
 | Wet clay | ~**10–40 dB/m** attenuation (moisture dependent) |
-| First metre | ~**20–40 dB** gone before the wave reaches air |
+| First metre | ~**10–40 dB** gone before the wave reaches air |
 | Soil–air boundary | Wave **refracts** and spreads along the surface |
 | After breakout | Ordinary LoRa in air — hundreds of metres |
 
-Design target: **1 m through soil**, **200–500 m** once in air.
+Design target: **1 m through soil**, **100–200 m** once in air.
 
-Airtime (explicit header, CRC on, preamble 8, BW 125 kHz, CR 4/5, 12-byte payload): **SF7 ≈ 41 ms**, SF8 ≈ 72 ms, SF9 ≈ 144 ms (standard LoRa symbol math). Design energy uses **~50 ms** class including sensor overhead. SF7 is code baseline; SF8/SF9 are margin if soil loss is worse. Sensitivity improves with SF; node TX **PA_BOOST ~+14…+17 dBm** class (`REG_PA_CONFIG 0x8F`).
+Airtime (explicit header, CRC on, preamble 8, BW 125 kHz, CR 4/5, 12-byte payload): **SF7 ≈ 41 ms**, SF8 ≈ 72 ms, SF9 ≈ 144 ms (standard LoRa symbol math). Design energy uses **~50 ms** class including sensor overhead. SF7 is code baseline; SF8/SF9 are margin if soil loss is worse. Sensitivity improves with SF; node TX is **+17 dBm configured** (`REG_PA_CONFIG 0x8F`, PA_BOOST; module capable of up to +20 dBm).
 
 **λ/4 in air** (VF ≈ 0.95 for copper):
 
@@ -177,7 +178,7 @@ In a material: $\lambda_{\mathrm{med}} = \lambda_{\mathrm{air}}/\sqrt{\varepsilo
 | Air pocket | 1 | stays ~16.5 cm — **use this** |
 | Wet clay | ~30 | shrinks ~80% → ~**3 cm**, and moisture **moves** $\varepsilon_r$ |
 
-A bare wire in clay is never resonant for long. Wind **17.0 cm** of solid copper on a **5 mm** mandrel, **18–22** close turns → **~3.5 cm** tall. Keep that coil in an **air-filled** plastic volume. Helix **vertical**; tower whip **vertical**. Tower antenna **1.5–2 m** on a pole (dirt at ground level eats the incoming wave). Buried capsule **level**. Tower: high-gain **omnidirectional outdoor** whip — the node helix is electrically small; the tower is not size-limited.
+A bare wire in clay is never resonant for long. Wind **17.0 cm** of solid copper on a **5 mm** mandrel, **10–11 close turns at ~3.2 mm pitch** → **~3.4 cm** tall. Keep that coil in an **air-filled** plastic volume. Helix **vertical**; tower whip **vertical**. Tower antenna **1.5–2 m** on a pole (dirt at ground level eats the incoming wave). Buried capsule **level**. Tower: high-gain **omnidirectional outdoor** whip — the node helix is electrically small; the tower is not size-limited.
 
 ---
 
@@ -196,7 +197,7 @@ A bare wire in clay is never resonant for long. Wind **17.0 cm** of solid copper
 
 $$P_{rx} = P_{tx} + G_{tx} + G_{rx} - L_{soil} - L_{air} - L_{misc}$$
 
-Soil (\(L_{soil}\), ~**10–40 dB** for 1 m wet clay) is the main uncertainty (**H4**). After breakout, design air target is **100–200 m** with a tower whip **1.5–2 m AGL** (omnidirectional). PA is **PA_BOOST** (~+14…+20 dBm); peak current is why the TX **47 mF + 1.2 kΩ** buffer exists. Detail: [[Firmware Hub#RF settings (production)]].
+Soil (\(L_{soil}\), ~**10–40 dB** for 1 m wet clay) is the main uncertainty (**H4**). After breakout, design air target is **100–200 m** with a tower whip **1.5–2 m AGL** (omnidirectional). PA is **PA_BOOST at +17 dBm configured** (`0x8F`; up to +20 dBm available); peak current is why the TX **47 mF + 1.2 kΩ** buffer exists. Detail: [[Firmware Hub#RF settings (production)]].
 
 ## Where we deploy
 
@@ -275,7 +276,7 @@ Datasheets to keep: ATmega328P, ADXL345, SX1278/Ra-02, W25Q64, moisture v1.2.
 
 Formal product certification would need an accredited lab later. This prototype phase designs toward these standards and closes critical risks by measurement (see [[Status and open issues]]).
 
-Also summarised in [[Full Proposal#7.3 IEC standards and feasibility]].
+Also summarised in [[Full Proposal#8. Standards and feasibility]].
 
 **Broader feasibility questions** (spectrum, safety claims, cost, power proof, ethics, FAQ): [[Mentor readiness]].
 

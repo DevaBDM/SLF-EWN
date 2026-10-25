@@ -32,21 +32,31 @@ Older drafts used MicroSD or two Li-SOCl₂ cells. **USB 5 V** is the build; opt
 **Schematic** · **PCB** · **3D**
 
 ![[Schematic_landslideReciever_2026-08-26.png]]
+*Figure R1 — receiver schematic export, Rev 1.0. Pre-fab; the image still shows the dual-cell / supercap / EEPROM revision (H7).*
+
 ![[PCB_PCB_landslideReciever_2026-08-26.png]]
+*Figure R2 — receiver 95 × 70 mm single-layer layout, Rev 1.0.*
+
 ![[Attachments/Receiver 3D PCB.png]]
+*Figure R3 — receiver 3D top view, Rev 1.0.*
+
 ![[Attachments/Receiver 3D PCB back.png]]
+*Figure R4 — receiver 3D bottom view, Rev 1.0.*
+
+> [!warning] Images are not as-built (H7)
+> The exported revision shows two Li-SOCl₂ holders, a supercap, and an EEPROM footprint. The build text and `Code/` specify **USB-only power** and a **W25Q64** log. Re-export both boards after the schematic is reconciled — see **H7** on [[Status and open issues]].
 
 ## Parts on this board
 
-| Function | Part | EasyEDA | Mount |
-|:---------|:-----|:--------|:------|
-| MCU | ATmega328P-PU | `ATMEGA328P-PU` | DIP-28 socket |
-| Radio | **Ra-02** | `Ra-02` | Female 2.54 mm |
-| Flash | W25Q64 | `W25Q64` | DIP-8 or SOIC adapter |
-| USB | FT232RL module | `FT232RL Module` | Headers |
-| Regulator | LM1117-3.3 TO-220 | `LM1117-3.3` | THT |
-| Antenna | SMA + outdoor whip | `SMA-TH` | Edge |
-| Clock | 16 MHz + 2× 22 pF | — | THT |
+| Function  | Part               | EasyEDA          | Mount                 |
+| :-------- | :----------------- | :--------------- | :-------------------- |
+| MCU       | ATmega328P-PU      | `ATMEGA328P-PU`  | DIP-28 socket         |
+| Radio     | **Ra-02**          | `Ra-02`          | Female 2.54 mm        |
+| Flash     | W25Q64             | `W25Q64`         | DIP-8 or SOIC adapter |
+| USB       | FT232RL module     | `FT232RL Module` | Headers               |
+| Regulator | LM1117-3.3 TO-220  | `LM1117-3.3`     | THT                   |
+| Antenna   | SMA + outdoor whip | `SMA-TH`         | Edge                  |
+| Clock     | 16 MHz + 2× 22 pF  | —                | THT                   |
 
 **3.3 V rail:** MCU pin 7, Ra-02 VCC, W25Q64 VCC. **GND:** MCU 8 & 22, radio, flash, FTDI, SMA legs.
 
@@ -63,7 +73,7 @@ Must match `receiver.c`:
 | 9 / 10 | XTAL | 16 MHz + 22 pF |
 | 1 RESET | — | 10 kΩ to 3.3 V |
 
-UART 115200. Host protocol: [[Firmware Hub#Data formats]].
+UART 115200 host setting; `receiver.c` currently generates 111.1 kbaud (H9). Host protocol: [[Firmware Hub#Data formats]].
 
 ## Recommended passives (RX)
 
@@ -92,10 +102,10 @@ UART 115200. Host protocol: [[Firmware Hub#Data formats]].
 
 | Mode | What happens |
 |:-----|:-------------|
-| PC unplugged | DIO0 → CRC-ok frame → 16-byte append (`write_count` + 12 B) |
+| PC unplugged | DIO0 → CRC-ok frame → 16-byte append (`record_id` + 12 B) |
 | PC plugged | Same; dashboard **polls** `'S'`/`'D'`/`'N'` |
 | Host `'D'` / `'N'` | `0xAA` header + records (not a raw 12-byte stream) |
 
-Do **not** put a FAT filesystem on the AVR. W25Q64 is a raw page log: [[Firmware Hub#Surface tower]].
+Do **not** put a FAT filesystem on the AVR. W25Q64 is a raw page log: [[Firmware Hub#Surface tower (`receiver.c`)]].
 
 **~$15.50.** Antenna **1.5–2 m** up: [[Project Overview#Radio]].
