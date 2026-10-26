@@ -289,6 +289,45 @@ If LIS3DH becomes available, only `transmitter_accelerometer.c` + fake need to c
 
 ---
 
+## Self-implemented firmware (supply-chain / trust policy)
+
+**Policy.** Application and device drivers are **written in-tree**. Third-party Arduino libraries, vendor “.h + .c” packs, and random GitHub LoRa/accel helpers are **not** used. The only non-project headers are **toolchain / language standard** includes shipped with the AVR-GCC environment.
+
+**Rationale (security / integrity).** External application headers and opaque library blobs can be altered (accidental fork drift, compromised mirror, or intentional malfunction). Keeping drivers under project review reduces that surface: SPI register maps, CRC, flash erase policy, and sleep behaviour are visible in `Code/`.
+
+### Allowed includes (audit of `Code/real/` as built)
+
+| Kind | Examples | Role |
+|:-----|:---------|:-----|
+| **Toolchain / ISO C** | `<stdint.h>`, `<string.h>` | Fixed-width types, `memcpy`-class helpers |
+| **AVR libc / device** | `<avr/io.h>`, `<avr/interrupt.h>`, `<avr/sleep.h>`, `<avr/wdt.h>`, `<util/delay.h>` | SFRs, ISR, sleep, WDT; tower UART timeout uses `_delay_us` only |
+| **Project-local** | `slf_protocol.h`, `transmitter_*.h`, `receiver_*.h` | Protocol and drivers owned by the team |
+
+### Explicitly not used
+
+| Rejected dependency | Why |
+|:--------------------|:----|
+| Arduino core / `.ino` wrappers | Hidden runtime, non-audited helpers |
+| Popular LoRa Arduino libraries | Opaque TX path; RF settings not matched to our freeze list |
+| Vendor ADXL / W25Q “library” packs | Prefer datasheet register drivers in-tree |
+| FAT / SdFat / filesystem stacks | Tower uses raw NOR records only |
+
+### What we implemented ourselves
+
+| Module | Responsibility |
+|:-------|:---------------|
+| `Common/slf_protocol.*` | 12-byte frame layout, CRC-8, status bits |
+| `transmitter_accelerometer.*` | ADXL345 SPI Mode 3, low-power ACTIVITY, measure mode |
+| `transmitter_lora.*` | SX1278 register TX (not FIFO-only fake contract on hardware) |
+| `receiver_radio.*` | SX1278 continuous RX, DIO0 / FIFO read |
+| `receiver_storage.*` | W25Q64 append, sector/chip erase policy |
+| `transmitter.c` / `receiver.c` | Sleep, FET rail, host poll protocol |
+| `fake_*.c` | Proteus-only SPI/UART stand-ins — **not** linked into production `.hex` |
+
+**Honest limit.** Trust still depends on the **compiler, libc, and chip datasheets** being genuine. This policy does not claim formal binary attestation; it claims **no third-party application middleware** in the node/tower firmware path.
+
+---
+
 ## Delays policy
 
 | Location | Mechanism |

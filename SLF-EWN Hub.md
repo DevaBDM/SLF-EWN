@@ -27,9 +27,12 @@ artifacts/
 ├── SLF-EWN Hub.md              ← index (this page)
 ├── README.md
 ├── Code/                       as-built AVR (wins over older prose)
-│   ├── Code Hub.md
-│   ├── Transmitter/ · Receiver/ · Common/
-│   └── realDevicePins.md
+│   ├── real/                   production sources
+│   │   ├── Code Hub.md
+│   │   ├── Transmitter/ · Receiver/ · Common/
+│   │   ├── ReceiverDevice/ · TransmitterDevice/
+│   │   └── realDevicePins.md
+│   └── sim/                    Proteus child firmwares
 ├── Firmware/Firmware Hub.md    formats, pins-in-code, WDT, pre-flash
 ├── Proteus/                    sim sheets + fake-chip wiring
 ├── EasyEDA/                    1-layer THT boards
