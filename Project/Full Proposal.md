@@ -745,7 +745,7 @@ The design is simulation-validated and costed at about **$43** for a node–towe
 #define SLF_STATUS_ACCEL_ERROR    0x01u
 ```
 
-*Table B1 — Shared protocol constants from `Code/Common/slf_protocol.h`.*
+*Table B1 — Shared protocol constants from `Code/real/Common/slf_protocol.h`.*
 
 | Item | Value |
 |:-----|:------|
