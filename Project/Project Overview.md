@@ -20,7 +20,7 @@ Buried nodes at **1 m**, **ADXL345** + capacitive moisture, **Ra-02** 433 MHz th
 
 ## What we decided
 
-When notes disagree, **this table wins.** Archive drafts that still say LIS3DH, MicroSD, AO3401, or 2-layer SMD are stale.
+When notes disagree, **this table wins.** Older drafts that said LIS3DH, MicroSD, AO3401, or 2-layer SMD were removed from the vault — ignore them.
 
 | Topic | Not this | **This (as built)** |
 |:------|:---------|:--------------------|

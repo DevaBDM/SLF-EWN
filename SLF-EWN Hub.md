@@ -46,8 +46,7 @@ artifacts/
 │   └── Status and open issues.md
 ├── SOLIDWORKS/
 │   └── Mechanical Hub.md       capsule + film (canonical)
-├── Blender/Blender Hub.md      → points to Mechanical Hub
-└── Archive/                    stale drafts — do not copy numbers
+└── Blender/Blender Hub.md      → points to Mechanical Hub
 ```
 
 **Who owns a fact**

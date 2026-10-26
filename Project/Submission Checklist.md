@@ -40,7 +40,7 @@ This page is the index for the submission package. It says what to send, what to
 | Feasibility and standards | [[Mentor readiness]] · [[Project Overview#IEC standards and feasibility]] | Ready |
 | Open issues | [[Status and open issues]] | Ready |
 
-**Do not include `Archive/`.** It contains stale drafts with LIS3DH, MicroSD, two-cell, and 2-layer assumptions. It is kept only for history.
+**Stale drafts are gone.** The old LIS3DH / MicroSD / two-cell / 2-layer notes were removed from the vault; do not re-import them from Git history.
 
 ---
 
@@ -77,7 +77,6 @@ This page is the index for the submission package. It says what to send, what to
 - [ ] Every image embed resolves to a file in `Attachments/`.
 - [ ] Every internal link points to an existing note or heading.
 - [ ] No citation markers, stray triple quotes, emoji, or assistant-style phrasing.
-- [ ] `Archive/` is excluded from the exported package.
 - [ ] PDF export includes the report and the slide deck; code is attached as a folder or archive.
 
 ### Demo
@@ -142,7 +141,6 @@ Full register: [[Status and open issues]].
 | Dashboard demo on the submission laptop | C | [ ] |
 | Capsule dimensions match the report | B | [ ] |
 | Film/renders use those dimensions | D | [ ] |
-| Package exported without `Archive/` | A | [ ] |
 | Backup copy on a second USB drive | A | [ ] |
 
 ---
