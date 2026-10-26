@@ -19,7 +19,11 @@ Obsidian-style vault for the **Subterranean Landslide and Flood Early-Warning Ne
 
 ## Video
 
-Project walkthrough: [SLF-EWN — project video](https://youtu.be/RLF6Dt3RYG0?si=y9VGXg2fZ21DnFiv)
+<a href="https://www.youtube.com/watch?v=RLF6Dt3RYG0">
+  <img src="https://img.youtube.com/vi/RLF6Dt3RYG0/maxresdefault.jpg" alt="Watch the SLF-EWN project video" width="720">
+</a>
+
+▶ Click the preview to play the project walkthrough on YouTube.
 
 ## Rule of truth
 
