@@ -67,6 +67,17 @@ Inside the sealed volume: PCB traces and soldered probe wires only — **no extr
 
 **Tower:** weather box for RX board (95×70 mm), antenna on a **1.5–2 m** pole, high-gain omni, vertical polarisation matching the buried helix.
 
+### Source files
+
+| File | Contents |
+|:-----|:---------|
+| `SOLIDWORKS/Part1.SLDPRT` | enclosure part 1 — solid model |
+| `SOLIDWORKS/Part1.SLDDRW` | dimensioned drawing of part 1 |
+| `SOLIDWORKS/Part2.SLDPRT` | enclosure part 2 — solid model |
+| `SOLIDWORKS/Part2.SLDDRW` | dimensioned drawing of part 2 |
+
+Native SolidWorks files; export STEP/STL for Blender. Dimensions above are the reference — do not re-scale the CAD to fit prose.
+
 ### SolidWorks deliverables
 
 - [ ] Printable TX capsule (caps, gasket groove, probe gland)
