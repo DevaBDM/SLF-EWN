@@ -31,6 +31,17 @@ flowchart LR
 > [!warning] Schematic/PCB revision mismatch (H7)
 > The exported schematic and PCB images in `Attachments/` are **not the as-built design**. They show an **LIS3DH** module footprint, **two Li-SOCl₂ holders** and a **supercap/EEPROM** block on the receiver, while the build text and `Code/` specify **ADXL345**, **single rechargeable pack on a 2-pin header**, **USB + battery power**, and **W25Q64**. Treat the images as an earlier revision until the boards are re-exported; see **H7** on [[Status and open issues]].
 
+## Project sources
+
+Editable EasyEDA exports (import the `.json` back into EasyEDA to open the design):
+
+| Board | Folder | Documents |
+|:------|:-------|:----------|
+| Buried TX | `EasyEDA/landslideDetector/` | `Schematic_transmitter` + BOM (`landslideDetector.json`), `PCB_SingleLayer`, `PCB_SingleLayer_SQUARE` |
+| Tower RX | `EasyEDA/landslideReciever/` | `Schematic_receiver` + BOM (`landslideReciever.json`), `PCB_landslideReciever` |
+
+`PCB_SingleLayer_SQUARE` is the square outline variant of the TX board. These JSON files are the editable design sources; the PNG exports in `Attachments/` are an earlier revision (H7), so verify the schematic against the tables below before fabricating.
+
 ---
 
 ## Circuit decisions (TX vs RX) — final
