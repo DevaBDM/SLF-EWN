@@ -17,6 +17,10 @@ Obsidian-style vault for the **Subterranean Landslide and Flood Early-Warning Ne
 | **[[Code Hub]]** | As-built AVR sources — wins over older prose |
 | **[[Firmware Hub]]** | 12-byte / 16-byte formats, status bits, WDT |
 
+## Video
+
+Project walkthrough: [SLF-EWN — project video](https://youtu.be/RLF6Dt3RYG0?si=y9VGXg2fZ21DnFiv)
+
 ## Rule of truth
 
 1. **`Code/`** and **[[Project Overview#What we decided]]** win when numbers disagree.
