@@ -9,14 +9,15 @@ Code/
 │   ├── Receiver/         tower coordinator + SX1278 RX + W25Q64 storage
 │   ├── Transmitter/      node coordinator + ADXL345 + SX1278 TX
 │   ├── ReceiverDevice/   self-contained AVR-CMake bench project
-│   └── TransmitterDevice/ self-contained AVR-CMake bench project
+│   ├── TransmitterDevice/ self-contained AVR-CMake bench project
+│   ├── Code Hub.md       design notes and module APIs
+│   └── realDevicePins.md datasheet pinouts
 ├── sim/                  Proteus-only child firmwares
 │   ├── receiver/fake_lora/
 │   └── transmitter/
 │       ├── fake_accelerometer/
 │       └── fake_lora/
-├── Code Hub.md
-└── realDevicePins.md
+└── README.md             this file
 ```
 
 ## Build groups (production)
