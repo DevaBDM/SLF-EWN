@@ -28,7 +28,7 @@ Obsidian-style vault for the **Subterranean Landslide and Flood Early-Warning Ne
 ## Rule of truth
 
 1. **`Code/`** and **[[Project Overview#What we decided]]** win when numbers disagree.
-2. `Archive/` is stale drafts — do not copy part numbers or byte layouts from there.
+2. If a number is not in `Code/` or the decision table, it is not a fact — old drafts and commit history do not count.
 3. Change a pin or a byte only in [[Firmware Hub]] / the matching `.c`, then update the sim or PCB note.
 4. Close gaps on [[Status and open issues]] when code/CAD lands — do not “fix” prose alone.
 
@@ -40,8 +40,7 @@ artifacts/
 ├── Code/ · Firmware/ · Proteus/ · EasyEDA/ · Dashboard/
 ├── Project/   (Overview, Full Proposal, Challenges, Status, Submission Checklist)
 ├── SOLIDWORKS/Mechanical Hub.md   (capsule + film)
-├── Blender/   (stub → Mechanical Hub)
-└── Archive/   (old drafts only)
+└── Blender/   (stub → Mechanical Hub)
 ```
 
 **As-built stack:** ADXL345 + capacitive moisture → 12-byte LoRa frame (Ra-02, 433 MHz SF7) → tower W25Q64 (16-byte records) → Qt polls USB.
