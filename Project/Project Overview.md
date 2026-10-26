@@ -30,7 +30,7 @@ When notes disagree, **this table wins.** Archive drafts that still say LIS3DH, 
 | FET | AO3401 SMD | **ZVP2106A** TO-92 |
 | PCB | 2-layer SMD | **1-layer THT** + jumpers |
 | UI | Qt Widgets / web | **Qt 6 + QML** (practical, not a marketing mock) |
-| Tower power | Dual Li-SOCl₂ only | **USB 5 V** (+ optional battery) |
+| Tower power | Dual Li-SOCl₂ only | **USB 5 V** or **rechargeable pack** on a 2-pin header (solar-charged) |
 | CAD | Blender as the enclosure | **SolidWorks** print · Blender film |
 | Firmware | Arduino core / one `.ino` / third-party device libs | **AVR-GCC C**, self-written drivers; only toolchain `.h` (avr/*, stdint, string) — [[Code Hub#Self-implemented firmware (supply-chain / trust policy)]] |
 
@@ -142,13 +142,15 @@ Shared jig: Arduino as ISP ~$25 (one for the lab). Optional outdoor 433 MHz whip
 - **−60…+85 °C** — buried temperature swings.
 - **Flat** voltage until end of life — simpler brown-out story than Li-ion sag.
 
-TX peaks **~120 mA** for ~50 ms (SF7 class ToA). A thionyl cell cannot source that peak cleanly, so the **transmitter** uses an RC buffer: **1.2 kΩ series** from the cell, then **47 mF / 5.5 V** on the always-on rail. Math (same as challenges **E5**): $\Delta Q = 0.006\,\mathrm{C}$, $\Delta V \approx 127\,\mathrm{mV}$, $I_\mathrm{max} = 3.0\,\mathrm{mA}$, $\tau = 56.4\,\mathrm{s}$, $5\tau \approx 4.7\,\mathrm{min} \ll 15\,\mathrm{min}$. Do **not** use a 2.7 V or 3.6 V memory-backup cap on a 3.6 V cell. The **receiver does not use this network** (USB-powered). See [[EasyEDA Hub#Circuit decisions (TX vs RX) — final]] · [[Challenges and Solutions#E5 — Optimized RC Network for the TX Current Pulse]].
+TX peaks **~120 mA** for ~50 ms (SF7 class ToA). A thionyl cell cannot source that peak cleanly, so the **transmitter** uses an RC buffer: **1.2 kΩ series** from the cell, then **47 mF / 5.5 V** on the always-on rail. Math (same as challenges **E5**): $\Delta Q = 0.006\,\mathrm{C}$, $\Delta V \approx 127\,\mathrm{mV}$, $I_\mathrm{max} = 3.0\,\mathrm{mA}$, $\tau = 56.4\,\mathrm{s}$, $5\tau \approx 4.7\,\mathrm{min} \ll 15\,\mathrm{min}$. Do **not** use a 2.7 V or 3.6 V memory-backup cap on a 3.6 V cell. The **receiver does not use this network** (USB or battery via the 2-pin header). See [[EasyEDA Hub#Circuit decisions (TX vs RX) — final]] · [[Challenges and Solutions#E5 — Optimized RC Network for the TX Current Pulse]].
 
 **2-pin jumper (master disconnect):** storage and shipping (zero drain), safe handling while inserting the socketed MCU, no slide switch to fill with dirt.
 
 BOD: the Arduino factory 2.7 V setting (`0xFD`) will **lock** the chip as the cell ages. Buried fuses: [[Firmware Hub#Pre-flash (off the PCB)]].
 
-**Tower:** USB 5 V → LM1117-3.3. Optional battery is backup, not the primary design. Simulation may omit the regulator (5 V parts). Real Ra-02 on the PCB needs 3.3 V.
+**Tower:** two inputs are diode-OR-ed into the LM1117 — **USB 5 V** and a **2-pin battery header** (5.08 mm terminal, **5.5–9.0 V**), each through an SS34. The higher source wins, so the pack carries the receiver when USB is unplugged and USB takes over when the pack is absent or flat. A fuse (1 A polyfuse) and the series Schottky give fault and reverse-polarity protection. Both a **6 V SLA** pack and a **2S LiFePO4 / Li-ion** pack with BMS sit inside the window; the board does **not** charge or protect the pack.
+
+Charging is external: **solar panel → 6/12 V PWM charge controller → pack**, with the controller's load output or the pack BMS providing low-voltage disconnect. Budget in battery mode is **≈25 mA at 3.3 V** (Ra-02 RX ≈11 mA, MCU ≈9 mA, LM1117 quiescent ≈5 mA), or **≈30 mA from a 6 V pack → ≈4.3 Wh/day**. A 6 V 4.5 Ah SLA (27 Wh) gives **≈6 days without sun**; a 6 V 5 W panel at ~3 peak-sun hours and 60 % derating gives **≈9 Wh/day**. The FT232RL stays on USB VBUS, so it is inactive in the field; 1 kΩ series resistors on TXD/RXD stop an unpowered module loading the MCU UART. USB remains the dump/debug path. Battery voltage is **not** sensed in firmware (H10). Simulation may omit the regulator (5 V parts). Real Ra-02 on the PCB needs 3.3 V.
 
 ---
 
@@ -297,7 +299,7 @@ Pads on the TX board for an **external digital extensometer** — not stuffed in
 - **Secondary LoRa on the tower** (node RX stays on primary Ra-02; backhaul does not block listening).  
 - **USB on the tower kept** for dump, debug, firmware update.  
 - **Tower siren:** critical node message (`0x80`) latches loud alarm; host/handheld **SILENCE** when linked; otherwise alarm continues.  
-- **Tower field power:** **solar** primary + **battery backup** (USB kept for lab/service).  
+- **Tower field power:** panel, charge controller, and pack sizing (the RX board now carries the battery inlet header; enclosure integration and autonomy testing remain).  
 - **Tower self-telemetry:** battery, uptime, flash fill, siren/radio health logged and shown on host beside node data.  
 - **Host registry:** SQLite + dashboard register **towers** (location/data), **nodes**, and **node↔tower** links.  
 - **Handheld** MCU + mini LCD: concise status; collect via LoRa or USB from tower; USB data-mule to host.  

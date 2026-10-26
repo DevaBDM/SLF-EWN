@@ -87,7 +87,7 @@ flowchart TB
   end
   AIR["Air interface · 12-byte PDU · LoRa 433 MHz"]
   subgraph tower["Surface tower"]
-    R[ATmega328P · 16 MHz crystal · USB 5 V]
+    R[ATmega328P · 16 MHz crystal · USB 5 V / battery]
     F[W25Q64 SPI NOR · 16-byte records]
     R --> F
   end
@@ -114,7 +114,7 @@ The node must last years on a primary cell; the tower may stay powered and liste
 | :------ | :---------------------------- | :------------------------------------------ |
 | Node    | 8 MHz RC, Li-SOCl₂ 3.6 V      | Sense, pack, TX, µA-class sleep             |
 | Air     | 433 MHz LoRa (SX1278 / Ra-02) | Fixed 12-byte payload through soil then air |
-| Tower   | 16 MHz, USB → 3.3 V           | Continuous RX path, NOR log, command server |
+| Tower   | 16 MHz, USB or pack → 3.3 V   | Continuous RX path, NOR log, command server |
 | Host    | Desktop                       | Places/zones, per-node limits, charts, map  |
 
 **Production vs simulation**

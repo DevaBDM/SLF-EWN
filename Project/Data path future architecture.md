@@ -13,7 +13,7 @@ status: planned
 
 # Data path future architecture (planned — not this prototype build)
 
-← [[Project Overview]] · [[Full Proposal#13. Future work]] · Live build: USB tower + Qt only
+← [[Project Overview]] · [[Full Proposal#13. Future work]] · Live build: USB + battery-inlet tower + Qt
 
 **Status:** **Planned.** Current prototype keeps **tower USB ↔ Qt** only. This page freezes the agreed multi-path design so later work does not invent a second story.
 
@@ -36,7 +36,7 @@ status: planned
 | Actor | Role |
 |:------|:-----|
 | **Buried nodes** | Sense + 12-byte LoRa → tower (unchanged) |
-| **Tower** | Continuous RX from nodes → W25Q64 log; **USB** retained; **secondary LoRa** for backhaul; **siren**; **solar + battery backup** |
+| **Tower** | Continuous RX from nodes → W25Q64 log; **USB** retained; **secondary LoRa** for backhaul; **siren**; **battery inlet** (panel/controller Phase 2) |
 | **Host PC + Qt** | Advanced map, Places, charts, history; USB and/or LoRa dongle |
 | **Handheld** | Portable MCU + mini LCD + LoRa (+ USB device mode); concise status; data mule |
 
@@ -89,11 +89,11 @@ In the field the tower is **not** assumed to have permanent USB power. USB stays
 | **USB 5 V** | Optional/override in the lab; not the sole field supply |
 
 ```text
-  Solar panel ──► charge controller ──► battery ──► 5 V / 3.3 V rails
-                                      │
-                                      ├── MCU, radios, flash, USB-serial chip
-                                      └── siren driver (may need higher intermediate rail)
-  USB (when plugged) ── optional parallel / priority input for bench work
+  Solar panel ──► charge controller ──► battery ──► 2-pin inlet (5.5–9 V)
+                                      │                    │
+                                      │                    ├── SS34 ── LM1117 ── 3.3 V ── MCU, radio, flash
+                                      │                    └── siren driver (separate rail if needed)
+  USB (when plugged) ── SS34 ──► LM1117 IN (bench/service; higher source wins)
 ```
 
 ### Design notes
@@ -102,14 +102,14 @@ In the field the tower is **not** assumed to have permanent USB power. USB stays
 |:------|:---------|
 | Continuous RX | Tower radios stay on → average current is **far higher** than the buried node; size panel and battery for **24 h RX + occasional backhaul TX + siren test** |
 | Siren | Peak load is short but large; battery must support siren without browning out the MCU |
-| Chemistry | 12 V sealed lead-acid or LiFePO₄ class are common for outdoor poles; final choice is site/BOM |
+| Chemistry | **6 V SLA** or **2S LiFePO4 / Li-ion with BMS** (5.5–9 V inlet); a 12 V pack needs a different input stage |
 | USB coexistence | When USB is plugged in the lab, prefer not to fight the solar controller — diode-OR or a clear “bench vs field” jumper |
 | Autonomy target | State a design goal (e.g. **N days without sun**) when the electrical design is done |
 
 ### Relation to current prototype
 
-**This build:** tower on **USB 5 V → LM1117-3.3** is correct for bring-up.  
-**Field deployment (Phase 2):** add solar + battery; keep USB connector for service.
+**This build:** the Rev 1 board carries a **2-pin 5.5–9 V battery inlet** (1 A fuse, SS34 OR into LM1117), so a pack keeps the tower logging without USB. 6 V SLA or 2S LiFePO4 / Li-ion with BMS both fit; the board has **no charger and no LVD**.  
+**Field deployment (Phase 2):** add panel, PWM controller, low-voltage cut-off, enclosure integration, and an autonomy test; keep USB for service.
 
 ## Tower local alarm (siren)
 
@@ -289,10 +289,10 @@ Handheld LCD can show a **one-line** tower summary (e.g. `BAT 12.1V OK · SIRÉN
 
 ### Prototype vs Phase 2
 
-| Now (USB prototype) | Phase 2 |
-|:--------------------|:--------|
-| Optional: simple USB status fields (record count already exists) | Battery/solar sense hardware + status log + Qt tower panel |
-| No solar/battery on tower | Required for meaningful battery telemetry |
+| Now (USB + battery inlet) | Phase 2 |
+|:--------------------------|:--------|
+| Record count only; no battery field (H10) | Battery/solar sense hardware + status log + Qt tower panel |
+| 2-pin 5.5–9 V inlet fitted; no panel/controller | Panel, PWM controller, low-voltage cut-off, autonomy test |
 
 
 ---
@@ -346,7 +346,7 @@ Detail for the current app structure: [[Dashboard Hub#Registry model (host DB + 
 - Handheld MCU + LCD + firmware  
 - Host LoRa interface and Qt import from handheld  
 - Tower **siren + driver + silence command**  
-- **Solar panel + charge controller + backup battery** sizing for continuous RX and siren  
+- **Solar panel + charge controller + low-voltage cut-off** sizing for continuous RX and siren (the battery inlet itself is on the Rev 1 board)  
 - Tower **self-telemetry** (voltage sense, status log, host/handheld tower panel)  
 
 Current build still validates: nodes → tower RX → flash → **USB → Qt**.
@@ -360,7 +360,7 @@ Current build still validates: nodes → tower RX → flash → **USB → Qt**.
 3. Host LoRa RX path into Qt + Acknowledge → silence.  
 4. Handheld: LoRa poll + LCD status + local store + silence.  
 5. Handheld USB gadget → Qt import.  
-6. **Solar + battery backup** for field tower (size for continuous RX, backhaul, siren).  
+6. **Tower field power:** panel, controller, low-voltage cut-off, and autonomy test (inlet already on Rev 1).  
 7. Tower **self-telemetry** log + host tower panel (battery, uptime, flash, siren, radios).
 
 ---

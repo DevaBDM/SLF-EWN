@@ -26,7 +26,7 @@ status: active
 | | Buried node `transmitter.c` | Surface tower `receiver.c` |
 |:--|:----------------------------|:---------------------------|
 | `F_CPU` | 8 MHz internal RC | 16 MHz |
-| Power | 3.6 V, FET `PD4` | USB 5 V, no FET |
+| Power | 3.6 V, FET `PD4` | USB 5 V or 5.5–9 V battery header, no FET |
 | Job | WDT sleep → measure → LoRa TX | DIO0 ISR → flash log → **poll** UART |
 | Debug UART | **9600** 8N1 TX only (`PD1`) | **115200** host setting (111.1 kbaud actual — H9) |
 
@@ -93,7 +93,7 @@ Not a stream of 12-byte frames.
 
 | Byte | Name | Then | Meaning |
 |:----:|:-----|:-----|:--------|
-| `0x53` | `'S'` `CMD_STATUS` | — | used + free counts |
+| `0x53` | `'S'` `CMD_STATUS` | — | used + free counts (8-byte payload; **no battery field** — H10) |
 | `0x44` | `'D'` `CMD_FULL` | — | dump **all** records |
 | `0x4E` | `'N'` `CMD_NEW` | 4-byte BE `last_id` | dump IDs **> last_id** |
 | `0x43` | `'C'` `CMD_CLEAR` | — | chip erase; record count returns to 0 |

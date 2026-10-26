@@ -63,9 +63,10 @@ Last reviewed: **2026-10-25**. When code lands a fix, tick the item here and upd
 | H4 | **Through-soil RF unproven** | High | Design assumes 1 m soil + 100–200 m air. Needs soil-barrel / pit test |
 | H5 | **Single-vendor parts risk** | Medium | Moisture v1.2, ZVP2106A, Ra-02 from local shelf — [[Project Overview#Shop (Vector4Engineering)]] |
 | H6 | **Confirm EasyEDA: ADXL always-on; supercap TX-only** | Medium | Docs reviewed 2026-10-25. Before fab verify schematic nets — [[EasyEDA Hub#Circuit decisions (TX vs RX) — final]] |
-| H7 | **Schematic/PCB images are an older revision** | High before fab | Exports show an **LIS3DH** footprint, receiver **dual cells**, **supercap**, and **EEPROM**; build text and `Code/` say **ADXL345**, **USB-only**, **W25Q64**. Re-export after reconciling, and label images with their revision |
+| H7 | **Schematic/PCB images are an older revision** | High before fab | Exports show an **LIS3DH** footprint, receiver **dual cells**, **supercap**, and **EEPROM**; build text and `Code/` say **ADXL345**, **USB + battery-header power**, **W25Q64**. Re-export after reconciling, and label images with their revision |
 | H8 | **16 MHz at 3.3 V is out of spec** | High | ATmega328P is rated **10 MHz max at 2.7–5.5 V** (20 MHz only at 4.5–5.5 V). The tower runs 16 MHz from a 3.3 V rail. Use 5 V MCU with level shifting, an 8 MHz clock, or accept a documented overclock |
 | H9 | **UART baud is not actually 115200** | High | `receiver.c` calls `uart_init(8)` with `U2X=0` at 16 MHz → **111.1 kbaud** (about **3.6 % low**, outside the ~2 % budget). The least-bad 16 MHz setting is `U2X=1`/`UBRR=16` (117.6 kbaud, +2.1 %, still marginal); a 14.7456 MHz crystal with `UBRR=7` gives exactly 115200 |
+| H10 | **Battery inlet added; charger, LVD, and telemetry still open** | Medium before field | RX now has a **2-pin 5.5–9 V inlet** (1 A fuse, SS34 OR into LM1117). Undecided: pack chemistry (6 V SLA vs 2S LiFePO4 / Li-ion + BMS), panel wattage, PWM controller model, and low-voltage cut-off. Firmware has **no battery ADC**; `CMD_STATUS` remains 8 bytes of used/free counts. Fit **1 kΩ** UART series resistors because the FT232 is USB-powered. Autonomy target not yet written or tested — [[Receiver PCB#Battery and solar input]] |
 
 ---
 
@@ -92,11 +93,11 @@ Planned later (architecture frozen): [[Data path future architecture]]
 
 - Tower **secondary** LoRa backhaul (primary stays node RX)
 - Tower **siren / alarm** + host SILENCE command
-- Tower **solar + battery backup** (field power)
+- Tower **field power** sizing: panel, charge controller, enclosure integration, autonomy test (the 2-pin battery inlet is now on the RX board)
 - Tower **self-telemetry** (battery/life/health) + host tower panel
 - Host-side LoRa dongle / radio
 - **Handheld** collector (LCD + LoRa + USB data mule to Qt)
-- Field power for tower without permanent USB
+- Multi-day tower autonomy run on pack + panel (no USB)
 
 Still out of scope unless reopened:
 

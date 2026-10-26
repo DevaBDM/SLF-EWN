@@ -69,6 +69,7 @@ This page is the index for the submission package. It says what to send, what to
 - [ ] Node fuses are **L `0xE2`, H `0xDA`, E `0xFF`** (BOD disabled), not the Arduino `0xFD` 2.7 V setting.
 - [ ] Jitter is described as **implemented**, with `SIM_FAST_WAKE` as the simulation override.
 - [ ] UART is described as **111.1 kbaud actual** (H9), not “115200” without qualification.
+- [ ] Tower power is described as a **2-pin 5.5–9 V inlet**, external solar charger/LVD, and **no battery telemetry** (H10).
 - [ ] No claim that the PCB is fabricated or that the system is field-proven.
 
 ### Links and files
@@ -100,6 +101,7 @@ This page is the index for the submission package. It says what to send, what to
 | Range | “Design target 100–200 m after breakout; soil loss unmeasured” | “Kilometres through soil” |
 | Sensitivity | “About −123 dBm at SF7 / 125 kHz” | “−148 dBm” without the SF12 / 10.4 kHz condition |
 | Battery life | “3–7 year target; sleep current not yet measured” | “7-year life demonstrated” |
+| Tower backup | “2-pin 5.5–9 V inlet on the board; pack and solar sizing not built or tested” | “Runs for days on solar” |
 | Flash | “8 MB, 524,288 records, wraps by chip erase” | “Infinite log” or “ring buffer” |
 | Tilt | “Raw ADXL345 counts; host converts with asin” | “Direct degrees from the node” |
 | PCB | “Schematics and layout drafted; fab not ordered” | “Board built and tested” |
@@ -123,6 +125,7 @@ This page is the index for the submission package. It says what to send, what to
 | H7 | The exported schematic/PCB images are an older revision (LIS3DH, dual cell, EEPROM). |
 | H8 | The tower runs 16 MHz at 3.3 V, outside the ATmega328P datasheet condition. |
 | H9 | The tower UART is 111.1 kbaud, not 115200. |
+| H10 | The tower has a 2-pin 5.5–9 V battery inlet, but the pack, panel, controller, LVD, and battery telemetry are not settled. |
 | M3 | The capsule CAD still needs the 75–80 mm ID update. |
 
 Full register: [[Status and open issues]].

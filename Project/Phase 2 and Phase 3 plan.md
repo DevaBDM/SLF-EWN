@@ -21,7 +21,7 @@ status: planned
 
 | Phase | Meaning |
 |:------|:--------|
-| **Phase 1** | Current prototype: buried node + single-radio USB tower + Qt over UART |
+| **Phase 1** | Current prototype: buried node + single-radio tower (USB or battery inlet) + Qt over UART |
 | **Phase 2** | Field-capable tower and multi-path data access (agreed architecture) |
 | **Phase 3** | Advanced sensing, mesh, analytics, production hardening |
 
@@ -43,7 +43,7 @@ These are **not** Phase 2 features; they prove the core chain.
 | P1-8 | End-to-end: node → tower flash → USB `'N'`/`'D'` → Qt | Demo script works without Proteus |
 | P1-9 | **H2** Tower fuse recipe written and applied | Crystal 16 MHz tower boots from flash |
 
-**Phase 1 “good enough” demo:** one node, one USB tower, Qt SAFE/WARNING/CRITICAL, emergency `0x80` path, no Phase 2 radios required.
+**Phase 1 “good enough” demo:** one node, one tower, Qt SAFE/WARNING/CRITICAL, emergency `0x80` path, no Phase 2 radios required.
 
 ---
 
@@ -83,11 +83,13 @@ Architecture reference: [[Data path future architecture]].
 
 ### Workstream C — Tower field power (solar + battery)
 
+**Rev 1 status:** the **2-pin 5.5–9 V inlet**, 1 A fuse, and SS34 OR into the LM1117 are on the board. The panel, controller, low-voltage cut-off, and autonomy test remain.
+
 | Step | Task | Deliverable |
 |:-----|:-----|:------------|
-| C1 | Load budget: continuous RX + MCU + secondary LoRa idle + siren peak | Spreadsheet (mA average / peak) |
+| C1 | Load budget: continuous RX + MCU + secondary LoRa idle + siren peak | Spreadsheet (first pass ≈30 mA / ≈4.3 Wh/day) |
 | C2 | Select panel W, battery chemistry (e.g. LiFePO₄ or SLA), charge controller | BOM |
-| C3 | Power architecture: solar → controller → battery → 5 V/3.3 V rails; USB bench path diode-OR or jumper | Schematic block |
+| C3 | Power architecture: solar → controller → battery → 5.5–9 V inlet; USB bench path diode-OR (**board part done**) | Schematic block |
 | C4 | Enclosure: outdoor box, antenna feed, ventilation/seal | Mechanical note |
 | C5 | Autonomy target written (e.g. *N* days no sun) and tested | Test log |
 

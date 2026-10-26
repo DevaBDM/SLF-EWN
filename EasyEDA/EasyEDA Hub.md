@@ -29,7 +29,7 @@ flowchart LR
 **Link (intent):** LoRa 433 MHz · **1 m** through soil · **100–200 m** after breakout.
 
 > [!warning] Schematic/PCB revision mismatch (H7)
-> The exported schematic and PCB images in `Attachments/` are **not the as-built design**. They show an **LIS3DH** module footprint, **two Li-SOCl₂ holders** and a **supercap/EEPROM** block on the receiver, while the build text and `Code/` specify **ADXL345**, **single cell**, **USB-only receiver**, and **W25Q64**. Treat the images as an earlier revision until the boards are re-exported; see **H7** on [[Status and open issues]].
+> The exported schematic and PCB images in `Attachments/` are **not the as-built design**. They show an **LIS3DH** module footprint, **two Li-SOCl₂ holders** and a **supercap/EEPROM** block on the receiver, while the build text and `Code/` specify **ADXL345**, **single rechargeable pack on a 2-pin header**, **USB + battery power**, and **W25Q64**. Treat the images as an earlier revision until the boards are re-exported; see **H7** on [[Status and open issues]].
 
 ---
 
@@ -45,9 +45,10 @@ flowchart LR
 | **I_max = 3.0 mA** | **Cell inrush limit** through 1.2 kΩ — the load itself still draws ~120 mA peaks from the supercap | **No** |
 | **ZVP2106A / VCC_SW** | **Yes** — **moisture + Ra-02 only** | **No** |
 | **ADXL345 power** | **Always-on 3.6 V** (INT in sleep) | Not fitted |
-| **Primary cell** | Li-SOCl₂ AA | No (USB) |
+| **Primary cell** | Li-SOCl₂ AA | No (rechargeable pack on header) |
 | **Clock** | 8 MHz RC | 16 MHz crystal + 2×22 pF |
 | **Storage** | None | W25Q64 |
+| **Battery inlet** | — | **Yes** — 2-pin 5.08 mm, 5.5–9 V, fused, diode-OR |
 | **USB / FT232 / LM1117** | No | Yes |
 
 ---
@@ -116,7 +117,9 @@ ZVP2106A GATE ← PD4, with 100 kΩ to always-on 3.6 V
 ### Power tree
 
 ```
-USB 5 V (FT232) ── 10 µF ── LM1117-3.3 IN
+USB 5 V (FT232 VBUS) ── SS34 ──┐
+                               ├── 10 µF ── LM1117-3.3 IN
+BATT+ (5.5–9 V) ── 1 A fuse ── SS34 ──┘
 LM1117 OUT = 3.3 V ── 10 µF + 0.1 µF ── MCU, Ra-02, W25Q64, pull-ups
 GND common
 ```
@@ -142,14 +145,15 @@ GND common
 |:-------|:-------------|:-------|
 | **Ra-02** | 3.3 V; NSS PB2; DIO0 PD2; SPI; ANT→SMA | No FET, no supercap |
 | **W25Q64** | VCC 3.3 V; /CS PB1; SPI; **/WP and /HOLD → 10 kΩ → 3.3 V** | No MicroSD |
-| **FT232RL** | USB 5 V; TXD/RXD cross to MCU | — |
-| **LM1117-3.3** | IN 5 V, OUT 3.3 V, caps | — |
+| **FT232RL** | USB 5 V; TXD/RXD cross to MCU through **1 kΩ** | — |
+| **Battery inlet** | 2-pin 5.08 mm: BATT+ → 1 A fuse → SS34 → LM1117 IN; BATT− → GND | No onboard charger or LVD |
+| **LM1117-3.3** | IN = higher of **USB 5 V** and **BATT 5.5–9 V** (each via SS34), OUT 3.3 V, caps | — |
 
 ### Passives (RX)
 
-16 MHz + 2×22 pF · 10 kΩ RESET · 100 kΩ both CS · 10 kΩ WP/HOLD · regulator 10 µF in/out + 0.1 µF · 0.1 µF MCU · 0.1 µF + 10–47 µF Ra-02 · 0.1 µF flash · optional LEDs, TVS on SMA, USB polyfuse.
+16 MHz + 2×22 pF · 10 kΩ RESET · 100 kΩ both CS · 10 kΩ WP/HOLD · 10 kΩ RXD pull-up · 1 kΩ UART series ×2 · regulator 10 µF in/out + 0.1 µF · 0.1 µF MCU · 0.1 µF + 10–47 µF Ra-02 · 0.1 µF flash · optional LEDs, TVS on SMA, USB polyfuse.
 
-**Not on RX:** supercap, ZVP2106A, ADXL345, moisture, Li-SOCl₂ as primary supply.
+**Not on RX:** supercap, ZVP2106A, ADXL345, moisture, Li-SOCl₂ as primary supply, onboard charger/balancer (solar charging is external).
 
 ---
 
@@ -180,7 +184,7 @@ Full netlists: sections above.
 
 **TX:** socket + passives + FET → headers/SMA/moisture/jumper → pre-flashed MCU → cell + supercap → Ra-02 + ADXL + probe → POST → remove jumper for storage.
 
-**RX:** socket + crystal + LM1117 + passives → headers/SMA/FT232/W25Q64 → MCU → USB. **No supercap, no FET.**
+**RX:** socket + crystal + LM1117 + passives → battery header/fuse/diodes, headers, SMA, FT232, W25Q64 → MCU → USB. **No supercap, no FET, no charger.**
 
 **Status:** schematics done · layouts in review · before fab verify nets match tables above (**H6**).
 
@@ -197,4 +201,6 @@ Full netlists: sections above.
 | FET | `ZVP2106A` |
 | Flash | `W25Q64` |
 | USB | `FT232RL Module` |
+| Battery | `Terminal block 5.08` |
+| OR diode / fuse | `SS34` · `Polyfuse` |
 | 3.3 V | `LM1117-3.3` |

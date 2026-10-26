@@ -79,7 +79,7 @@ Using 433 MHz LoRa for sparse telemetry is standard practice. Feasible does not 
 | Buried node voltage | **3.6 V** primary Li-SOCl₂, low shock hazard |
 | No 5 V ISP on buried board | Pre-flash in lab; avoids stressing a 3.6 V design with a 5 V programmer |
 | Storage | 2-pin jumper isolates the cell |
-| Tower | USB 5 V → 3.3 V regulation; treated as ICT equipment (**IEC 62368-1**) |
+| Tower | USB 5 V or 5.5–9 V pack → 3.3 V regulation; treated as ICT equipment (**IEC 62368-1**) |
 | Lithium transport | Shipping cells may need **UN 38.3** rules (logistics, not design feasibility) |
 | Supercap | 5.5 V rated parallel buffer for PA peaks, ordinary practice |
 

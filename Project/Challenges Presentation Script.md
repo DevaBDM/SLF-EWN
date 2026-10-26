@@ -366,13 +366,13 @@ TX stagger is **already in code**. Each ID should match [[Status and open issues
 
 How to **finish Phase 1** in practice: turn off fast simulation wake; measure microamps in sleep; calibrate moisture; prove the accelerometer interrupt on hardware; fabricate boards; check antenna feed and noise; run a soil or pit radio test; then show a full path from node to tower flash to USB to the desktop app, including an emergency flag.
 
-“Good enough” for Phase 1 is one node, one USB tower, clear SAFE/WARNING/CRITICAL behaviour—not Phase 2 solar or handhelds.
+“Good enough” for Phase 1 is one node, one tower, clear SAFE/WARNING/CRITICAL behaviour—not Phase 2 backhaul or handhelds.
 
 ---
 
 ## J3
 
-**Only a short look forward.** Phase 2 later adds solar and battery on the tower, a local siren, tower health on the host, a second LoRa for backhaul, a simple handheld, and registering towers and nodes on the PC. Phase 3 is richer sensors, mesh, and harder production features.
+**Only a short look forward.** Phase 2 later completes the tower's field power (panel, charge controller, autonomy testing), adds a local siren, tower health on the host, a second LoRa for backhaul, a simple handheld, and registering towers and nodes on the PC. Phase 3 is richer sensors, mesh, and harder production features.
 
 This challenges presentation stays about **Phase 1** problems and solutions. Detailed Phase 2 steps are in [[Phase 2 and Phase 3 plan]].
 

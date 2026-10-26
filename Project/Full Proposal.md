@@ -175,7 +175,7 @@ Section 2 describes the architecture and data path. Sections 3–6 cover hardwar
                                               map · telemetry · alerts · SQLite
 ```
 
-*Figure 1 — System block diagram. The tower is USB-powered; the buried nodes run from primary cells and are independent apart from their ID-derived wake offset.*
+*Figure 1 — System block diagram. The tower runs from USB or a rechargeable pack (solar-charged); the buried nodes run from primary cells and are independent apart from their ID-derived wake offset.*
 
 A handheld or Android client that talks to the tower over a second radio is **future work only** (Section 13).
 
@@ -187,7 +187,7 @@ A handheld or Android client that talks to the tower over a second radio is **fu
 | Processing | ATmega328P, 8 MHz RC | ATmega328P, 16 MHz crystal |
 | Radio | Ra-02 TX, 433 MHz | Ra-02 RX, 433 MHz |
 | Storage | None | W25Q64, 16-byte records |
-| Power | Li-SOCl₂ + supercap, gated rails | USB 5 V → 3.3 V |
+| Power | Li-SOCl₂ + supercap, gated rails | USB 5 V or 5.5–9 V pack → 3.3 V |
 | Host link | Optional 9600 debug UART | USB-UART, command/response |
 
 *Table 1 — Subsystem responsibilities.*
@@ -319,17 +319,20 @@ The transmit charge alone averages **6.7 µA** at one frame per 15 min, before M
 | Radio | Ra-02 | 2.54 mm female headers |
 | Log | W25Q64 (8 MB) | DIP-8 or SOIC adapter |
 | USB | FT232RL module | Headers |
+| Battery inlet | 2-pin 5.08 mm + 1 A fuse + 2× SS34 | THT edge |
 | 3.3 V | LM1117-3.3 | TO-220, THT |
 
 *Table 3 — Tower hardware.*
 
-USB 5 V is the primary supply; an optional battery is backup. The radio and flash share SPI: radio CS on **PB2**, flash CS on **PB1**, DIO0 to **INT0** (PD2).
+Power enters through two diode-OR-ed paths into the LM1117: **USB 5 V** and a **2-pin battery inlet** (5.5–9.0 V, 1 A fuse, SS34). The higher source wins, so a 6 V SLA or a 2S LiFePO4 / Li-ion pack keeps the tower logging when USB is unplugged, and USB takes over when the pack is absent. Charging is external — solar panel → 6/12 V PWM controller → pack — with the pack BMS or the controller's load output providing low-voltage cut-off.
+
+Battery-mode draw is **≈25 mA at 3.3 V** (Ra-02 RX ≈11 mA, MCU ≈9 mA, LM1117 quiescent ≈5 mA), or **≈30 mA / ≈4.3 Wh/day from a 6 V pack**. A 6 V 4.5 Ah SLA (27 Wh) gives **≈6 days without sun**; a 6 V 5 W panel at ~3 peak-sun hours and 60 % derating gives **≈9 Wh/day**. The FT232RL stays on USB VBUS and is inactive in the field; 1 kΩ series resistors on TXD/RXD stop the unpowered module loading the MCU. Battery voltage is **not** sensed in firmware (H10). The radio and flash share SPI: radio CS on **PB2**, flash CS on **PB1**, DIO0 to **INT0** (PD2).
 
 ### 3.6 PCB rules
 
 Both boards are **1-layer FR-4, 100% through-hole**. The transmitter is **50 × 50 mm**; the receiver is **95 × 70 mm**. Decoupling capacitors sit within 5 mm of each supply pin, power traces are 30–40 mil, and signal traces about 10 mil. Layer crossings use a jumper or a top-side solder bridge, never a second layer. The MCU is socketed, modules sit on female headers, and the moisture probe leaves through edge pads.
 
-> **Open issue H7.** The exported schematic and PCB images currently show an **LIS3DH** footprint, a receiver with **two Li-SOCl₂ holders**, a supercap, and an EEPROM footprint. The build text and `Code/` specify **ADXL345**, **USB-only power**, and **W25Q64**. The images are an earlier revision and must be re-exported before fabrication. See [[EasyEDA Hub]] and [[Transmitter PCB]] / [[Receiver PCB]].
+> **Open issue H7.** The exported schematic and PCB images currently show an **LIS3DH** footprint, a receiver with **two Li-SOCl₂ holders**, a supercap, and an EEPROM footprint. The build text and `Code/` specify **ADXL345**, **USB + battery-header power**, and **W25Q64**. The images are an earlier revision and must be re-exported before fabrication. See [[EasyEDA Hub]] and [[Transmitter PCB]] / [[Receiver PCB]].
 
 ---
 
@@ -613,7 +616,7 @@ The prototype is a working simulation-backed design, not a deployed instrument. 
 Two further points belong in the report even though they do not have their own issue IDs:
 
 - **No encryption yet.** The air frame is authenticated only by CRC-8, which detects corruption but not tampering. Encryption is planned (F7).
-- **Single tower, USB-tethered.** The current host path is a USB cable. Solar power, a secondary LoRa backhaul, a siren, and a handheld collector are Phase 2 (Section 13).
+- **Single tower.** The host link is a USB cable. The Rev 1 board now takes a rechargeable pack on a 2-pin inlet, but panel/controller sizing, enclosure integration, autonomy testing, and battery telemetry remain Phase 2 (Section 13).
 
 ---
 
@@ -622,7 +625,7 @@ Two further points belong in the report even though they do not have their own i
 ### 13.1 Immediate engineering
 
 - Disable `SIM_FAST_WAKE`, invert/calibrate the moisture ADC, and fix the UART divisor.
-- Reconcile the schematic with the as-built ADXL345 / USB-only / W25Q64 design, then re-export the board images.
+- Reconcile the schematic with the as-built ADXL345 / USB + battery-header / W25Q64 design, then re-export the board images.
 - Re-model the capsule at 75–80 mm ID and deliver the STEP/STL set.
 - Measure sleep current and through-soil loss before claiming field life or range.
 
@@ -636,7 +639,7 @@ Full write-up: [[Data path future architecture]].
 | Tower secondary LoRa | Backhaul to host or handheld, so node packets are not missed on one radio |
 | Tower USB | Retained for dump and debug; field firmware update would need a bootloader, which is not fitted |
 | Tower siren | Latched alarm on a critical frame (`status 0x80`); host or handheld can silence when a supervising link is active |
-| Tower power | Solar primary + battery backup in the field; USB retained for lab work |
+| Tower power | Pack on the Rev 1 2-pin inlet; panel, charge controller, low-voltage cut-off, and autonomy testing in Phase 2 |
 | Tower telemetry | Battery, uptime, storage, siren, and radio health shown in a host tower panel |
 | Host registry | Register towers, nodes, and node-to-tower assignment; map and link paths |
 | Handheld | Embedded controller + small LCD; LoRa and/or USB to the tower; USB data-mule to the PC |
