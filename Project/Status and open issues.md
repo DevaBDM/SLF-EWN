@@ -74,7 +74,7 @@ Last reviewed: **2026-10-25**. When code lands a fix, tick the item here and upd
 
 | ID | Issue | Severity | Notes |
 |:---|:------|:---------|:------|
-| D1 | No separate Dashboard README | Low | Build notes live in [[Dashboard Hub]] only |
+| D1 | **Separate dashboard README** | Done | `Dashboard/Code/README.md` covers build, first run, map, and the receiver protocol. [[Dashboard Hub]] stays the architecture note |
 | M1 | SolidWorks deliverables unchecked | Medium | Capsule, tower box, STEP/STL, dimensioned drawing — [[Mechanical Hub]] |
 | M2 | Blender shot list not rendered | Low | Film is demo/report only — dimensions must come from Mechanical Hub |
 | M3 | **Capsule CAD not updated to 75–80 mm ID** | Medium | A 50×50 mm board has a **70.7 mm diagonal**; the old 50 mm ID drawing cannot fit it. Re-model the tube at **75–80 mm ID × ~120 mm** and re-check the helix air pocket |

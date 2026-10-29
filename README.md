@@ -39,6 +39,7 @@ Firmware/      air frame and record formats, pin maps, sleep/WDT notes
 Proteus/       simulation sheets and fake-chip wiring
 EasyEDA/       single-layer THT schematics and PCBs (editable JSON + exports)
 SOLIDWORKS/    transmitter enclosure models and dimensioned drawings
+Blender/       film shot list; dimensions come from Mechanical Hub
 Project/       proposal, decision record, challenges, submission checklist
 Attachments/   images used by the notes
 ```
@@ -56,6 +57,7 @@ Attachments/   images used by the notes
 | [Firmware Hub](Firmware/Firmware%20Hub.md) | 12-byte frame, 16-byte records, status bits, WDT |
 | [EasyEDA Hub](EasyEDA/EasyEDA%20Hub.md) | Board decisions, pin maps, layout rules |
 | [Mechanical Hub](SOLIDWORKS/Mechanical%20Hub.md) | Enclosure, dimensions, film shot list |
+| [Blender Hub](Blender/Blender%20Hub.md) | Film shot list; dimensions come from Mechanical Hub |
 | [Dashboard Hub](Dashboard/Dashboard%20Hub.md) | Qt application and receiver protocol |
 | [Proteus Hub](Proteus/Proteus%20Hub.md) | Simulation sheets and fake-chip wiring |
 

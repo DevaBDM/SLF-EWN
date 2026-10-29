@@ -89,7 +89,7 @@ The receiver **does not stream unsolicited**. The dashboard sends one command, w
 | `0x53` (`S`) | STATUS | none |
 | `0x44` (`D`) | FULL_DUMP | none |
 | `0x4E` (`N`) | INCREMENTAL | 4-byte big-endian last record ID |
-| `0x43` (`C`) | CLEAR | none (erases EEPROM; next RID is 0) |
+| `0x43` (`C`) | CLEAR | none (W25Q64 chip erase; next RID is 0) |
 
 ### Receiver → host (replies)
 
