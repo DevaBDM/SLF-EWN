@@ -48,7 +48,7 @@ Last reviewed: **2026-10-25**. When code lands a fix, tick the item here and upd
 | F6 | **Tower flash wrap** | Low | Sequential log; chip erase when full. A true incremental ring buffer would avoid the long erase pause and is Phase 2 work |
 | F7 | **Air-frame encryption (planned)** | Medium | Encrypt on node, decrypt on tower. Pre-shared keys at pre-flash; lightweight crypto for 8 MHz AVR; final frame size still to be decided — [[Challenges and Solutions]] |
 | F8 | **ADXL345 low-power INT on hardware** | Medium | Motion INT → INT0 while moisture/LoRa FET-off. Verify activity threshold and accel sleep current. The ADXL345 always-on rail draws tens of µA, so the **&lt; 10 µA** system target probably needs duty-cycling or a LIS3DH-class part |
-| F9 | **Dashboard tilt mapping** | Medium | Node sends **raw ADXL345 counts** (3.9 mg/LSB, 1 g ≈ 256), but the dashboard still documents a linear **−1950…1950 → −180…180** map. Use `asin(clamp(raw/256))` and clamp to ±90°, or angles will under-read |
+| F9 | **Dashboard tilt mapping** | Done | Node sends raw ADXL345 counts (1 g ≈ 256). `tiltRawToDeg` uses `asin(clamp(raw/256))`, so 1 g is ±90° |
 | F10 | **Status bit 0 collides with sequence** | Medium | `status = seq_counter & 0x7F`; `0x01` is ORed for accel error, so an error frame is indistinguishable from a normal frame whose seq LSB is 1. A later revision should reduce the sequence to six bits (0–63) and put the accel-error flag on bit 6 |
 
 ---

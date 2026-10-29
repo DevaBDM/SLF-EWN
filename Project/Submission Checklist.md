@@ -117,7 +117,6 @@ This page is the index for the submission package. It says what to send, what to
 | F4 | The Proteus flash is a 25AA1024 EEPROM stand-in; it needs a JEDEC bypass, and the real W25Q64 path is untested. |
 | F6 | The log wraps with a full chip erase; an incremental ring buffer is Phase 2. |
 | F8 | The ADXL345 always-on rail draws tens of µA; the <10 µA target needs duty-cycling or a different part. |
-| F9 | The dashboard tilt map is still linear; the correct conversion is `asin(raw/256)`. |
 | F10 | Status bit 0 overlaps the sequence LSB; the fix is a 6-bit sequence plus an accel-error bit at bit 6. |
 | H1 | PCB fabrication has not been ordered. |
 | H4 | Through-soil RF loss has not been measured. |
