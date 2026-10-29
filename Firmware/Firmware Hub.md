@@ -223,7 +223,7 @@ int16_t raw_x = (DATAX1 << 8) | DATAX0;  /* full-resolution ±2 g, 3.9 mg/LSB */
 ```
 If `DEVID` check fails, tilts stay 0 and status bit0 is set.
 
-> **Host mapping (F9):** the node sends **raw counts**, not pre-scaled degrees. The Qt parser must apply the ADXL345 scale (3.9 mg/LSB, 1 g ≈ 256) and use `asin` per axis. A linear “−1950…1950 → −180…180” mapping is not physically correct and will under-read tilt. Confirm the deployed parser before quoting angles.
+> **Host mapping:** the node sends **raw counts**, not pre-scaled degrees. The Qt dashboard applies the ADXL345 scale (3.9 mg/LSB, 1 g ≈ 256) with `asin` per axis, so 1 g is ±90°.
 
 ---
 

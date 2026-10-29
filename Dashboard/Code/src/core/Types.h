@@ -58,25 +58,27 @@ inline constexpr quint8 kCmdFullDump = 0x44;     // 'D'
 inline constexpr quint8 kCmdIncremental = 0x4E;  // 'N'
 inline constexpr quint8 kCmdClear = 0x43;        // 'C'
 inline constexpr quint8 kCmdError = 0xFF;
-inline constexpr float kTiltRawSpan = 1950.f; // radio X/Y/Z full scale
-inline constexpr float kTiltDegSpan = 180.f;  // mapped display range
+// ADXL345 full-resolution counts: 3.9 mg/LSB, so 1 g is about 256 counts.
+// The axis angle is asin(g), which reaches ±90° at 1 g.
+inline constexpr float kCountsPerG = 256.f;
 
 inline float tiltRawToDeg(qint16 raw)
 {
-    return qBound(-kTiltDegSpan, float(raw) * kTiltDegSpan / kTiltRawSpan, kTiltDegSpan);
+    const float g = qBound(-1.f, float(raw) / kCountsPerG, 1.f);
+    return qRadiansToDegrees(qAsin(g));
 }
 
 inline qint16 tiltDegToRaw(float deg)
 {
-    return static_cast<qint16>(qBound(-int(kTiltRawSpan),
-                                      int(std::lround(double(deg) * double(kTiltRawSpan) / double(kTiltDegSpan))),
-                                      int(kTiltRawSpan)));
+    const float clamped = qBound(-90.f, deg, 90.f);
+    const float g = qSin(qDegreesToRadians(clamped));
+    return static_cast<qint16>(std::lround(double(g * kCountsPerG)));
 }
 
 struct NodeData {
     quint16 deviceId = 0;
     quint16 moistureRaw = 0; // 0..10000 => 0.00% .. 100.00%
-    qint16 tiltX = 0;        // radio raw −1950..1950 → −180°..180°
+    qint16 tiltX = 0;        // ADXL345 counts, 1 g ≈ 256 → asin, ±90°
     qint16 tiltY = 0;
     qint16 tiltZ = 0;
     quint8 hardwareStatus = 0;

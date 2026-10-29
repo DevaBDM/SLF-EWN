@@ -117,7 +117,7 @@ The receiver **does not stream unsolicited**. The dashboard sends one command, w
 |--------|------|--------|
 | 0 | u16 | Device ID (`NODE<n>` when id &lt; `0xA000`, else 4-digit hex) |
 | 2 | u16 | Moisture raw (`0…10000` → `0.00…100.00 %`) |
-| 4 | i16 | Tilt X (radio raw −1950…1950 → −180°…180°) |
+| 4 | i16 | Tilt X (ADXL345 counts; 1 g ≈ 256, angle = asin, ±90°) |
 | 6 | i16 | Tilt Y |
 | 8 | i16 | Tilt Z |
 | 10 | u8 | Hardware status (`0x80` = emergency) |

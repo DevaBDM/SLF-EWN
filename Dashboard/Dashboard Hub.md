@@ -33,7 +33,7 @@ From each 16-byte dump record: RID u32 BE, then the 12-byte LoRa frame.
 | Status `0x80` | **Emergency-Interrupt** — CRITICAL even if moisture/tilt are green |
 | Record ID u32 | Cursor for INCREMENTAL `'N'`; not wall-clock time |
 
-The node sends **raw counts**, not pre-scaled degrees. The older linear “−1950…1950 → −180…180” mapping is not physically correct and is tracked as **F9** on [[Status and open issues]]. [[Firmware Hub#Data formats]].
+The node sends **raw counts**, not pre-scaled degrees. The dashboard converts each axis with `asin(clamp(raw / 256, −1, 1))`, so 1 g is ±90°. [[Firmware Hub#Data formats]].
 
 Simulation writes the **same 12-byte layout**. SQLite: telemetry, alerts, node profiles, **places**, accounts. Flush ~4 s.
 
